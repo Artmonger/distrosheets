@@ -1,0 +1,30 @@
+{
+  "app_name": "Monday Image Transfer",
+  "description": "Transfer files between columns in your Monday.com board - easily move files from one column to another with a single click",
+  "version": "1.0.0",
+  "icon": "https://raw.githubusercontent.com/mondaycom/monday-ui-react-core/master/src/assets/icons/file-dock.svg",
+  "author": "Cameron Smith",
+  "author_url": "www.artmonger.nyc",
+  "permissions": [
+    "boards:read",
+    "boards:write"
+  ],
+  "features": {
+    "boards": {
+      "item_views": {
+        "main": {
+          "type": "absolute",
+          "name": "File Transfer",
+          "url": "https://sleepy-refuge-49183-4f68ab005116.herokuapp.com/",
+          "description": "Transfer files between columns in your board. Requires file column types to work properly.",
+          "height": 300,
+          "required_scopes": [
+            "boards:read",
+            "boards:write"
+          ],
+          "supported_column_types": ["file"]
+        }
+      }
+    }
+  }
+} 
