@@ -62,68 +62,19 @@ async function downloadFileFromMonday(fileUrl, token) {
   console.log('File URL:', fileUrl);
   console.log('Token available:', !!token);
   
-  // Initialize Monday SDK with token
-  mondaySdk.setToken(token);
-  
   try {
-    console.log('Attempting direct download...');
-    const response = await fetch(fileUrl, {
-      headers: {
-        'Authorization': token,
-        'Accept': '*/*',
-        'monday-api-token': token,
-        'User-Agent': 'monday-image-resizer'
-      },
-      redirect: 'follow'
-    });
-
-    console.log('Direct download response:', {
-      status: response.status,
-      statusText: response.statusText,
-      headers: Object.fromEntries(response.headers.entries())
-    });
-
-    if (response.ok) {
-      const contentType = response.headers.get('content-type');
-      console.log('Received content type:', contentType);
-      
-      // If no content type header, try to infer from URL
-      if (!contentType || contentType === 'application/octet-stream') {
-        const fileExtension = fileUrl.split('.').pop().toLowerCase();
-        const mimeTypes = {
-          'jpg': 'image/jpeg',
-          'jpeg': 'image/jpeg',
-          'png': 'image/png',
-          'gif': 'image/gif',
-          'webp': 'image/webp',
-          'bmp': 'image/bmp'
-        };
-        
-        if (mimeTypes[fileExtension]) {
-          console.log('Inferred content type from extension:', mimeTypes[fileExtension]);
-          // Create a new response with the correct content type
-          const buffer = await response.arrayBuffer();
-          return new Response(buffer, {
-            headers: {
-              'content-type': mimeTypes[fileExtension]
-            }
-          });
-        }
-      }
-      
-      return response;
-    }
-
-    console.log('Direct download failed, trying through Monday.com API');
-    
-    // Extract asset ID from URL
+    // Extract asset ID from URL first
     const assetIdMatch = fileUrl.match(/resources\/(\d+)/);
     if (!assetIdMatch) {
       throw new Error('Could not extract asset ID from URL');
     }
     const assetId = assetIdMatch[1];
+    console.log('Extracted asset ID:', assetId);
     
-    // Get signed URL through the API
+    // Initialize Monday SDK with token
+    mondaySdk.setToken(token);
+    
+    // Get signed URL through the API first
     const query = `query {
       assets(ids: [${assetId}]) {
         url
@@ -131,39 +82,39 @@ async function downloadFileFromMonday(fileUrl, token) {
       }
     }`;
 
-    console.log('Querying Monday.com API for signed URL...');
+    console.log('Querying Monday.com API for URL...');
     const result = await mondaySdk.api(query);
-    console.log('API response:', result);
+    console.log('API response:', JSON.stringify(result, null, 2));
 
     if (!result.data?.assets?.[0]?.url) {
-      throw new Error('Failed to get signed URL from Monday.com API');
+      throw new Error('Failed to get URL from Monday.com API');
     }
 
-    const signedUrl = result.data.assets[0].url;
-    console.log('Got signed URL:', signedUrl);
+    const downloadUrl = result.data.assets[0].url;
+    console.log('Got download URL:', downloadUrl);
 
-    // Try downloading with the signed URL
-    console.log('Attempting download with signed URL...');
-    const signedResponse = await fetch(signedUrl, {
+    // Try downloading with the URL
+    console.log('Attempting download...');
+    const response = await fetch(downloadUrl, {
       headers: {
-        'Accept': '*/*',
-        'User-Agent': 'monday-image-resizer'
+        'Authorization': token,
+        'Accept': '*/*'
       }
     });
 
-    console.log('Signed URL download response:', {
-      status: signedResponse.status,
-      statusText: signedResponse.statusText,
-      headers: Object.fromEntries(signedResponse.headers.entries())
+    console.log('Download response:', {
+      status: response.status,
+      statusText: response.statusText,
+      headers: Object.fromEntries(response.headers.entries())
     });
 
-    if (!signedResponse.ok) {
-      throw new Error(`Failed to download with signed URL: ${signedResponse.status} ${signedResponse.statusText}`);
+    if (!response.ok) {
+      throw new Error(`Failed to download file: ${response.status} ${response.statusText}`);
     }
 
-    // Handle content type for signed URL response
-    const signedContentType = signedResponse.headers.get('content-type');
-    if (!signedContentType || signedContentType === 'application/octet-stream') {
+    // Get content type, with fallback to extension-based inference
+    let contentType = response.headers.get('content-type');
+    if (!contentType || contentType === 'application/octet-stream') {
       const fileExtension = fileUrl.split('.').pop().toLowerCase();
       const mimeTypes = {
         'jpg': 'image/jpeg',
@@ -175,17 +126,18 @@ async function downloadFileFromMonday(fileUrl, token) {
       };
       
       if (mimeTypes[fileExtension]) {
-        console.log('Inferred content type from extension for signed URL:', mimeTypes[fileExtension]);
-        const buffer = await signedResponse.arrayBuffer();
-        return new Response(buffer, {
-          headers: {
-            'content-type': mimeTypes[fileExtension]
-          }
-        });
+        console.log('Inferred content type from extension:', mimeTypes[fileExtension]);
+        contentType = mimeTypes[fileExtension];
       }
     }
 
-    return signedResponse;
+    // Create a new response with the proper content type
+    const buffer = await response.arrayBuffer();
+    return new Response(buffer, {
+      headers: {
+        'content-type': contentType || 'application/octet-stream'
+      }
+    });
 
   } catch (error) {
     console.error('Error downloading file:', error);
@@ -208,8 +160,10 @@ app.post('/resize-image', async (req, res) => {
     
     // Download the image using our helper function
     const response = await downloadFileFromMonday(fileUrl, token);
+    const contentType = response.headers.get('content-type');
+    console.log('Downloaded file content type:', contentType);
     
-    const buffer = await response.buffer();
+    const buffer = await response.arrayBuffer();
     console.log('Downloaded image, size:', buffer.length, 'bytes');
 
     if (buffer.length === 0) {
@@ -217,7 +171,7 @@ app.post('/resize-image', async (req, res) => {
     }
 
     // Log first few bytes of buffer to check format
-    console.log('First bytes of image:', buffer.slice(0, 16));
+    console.log('First bytes of image:', Buffer.from(buffer).slice(0, 16));
 
     // Get image metadata and validate it's an image
     let metadata;
@@ -230,19 +184,13 @@ app.post('/resize-image', async (req, res) => {
       }
     } catch (err) {
       console.error('Error reading image metadata:', err);
-      // Try to identify the issue
-      if (err.message.includes('Input buffer contains unsupported image format')) {
-        throw new Error('Unsupported image format');
-      } else {
-        throw new Error('Invalid image file: ' + err.message);
-      }
+      throw new Error('Invalid image file: ' + err.message);
     }
 
     // Resize the image
     console.log('Resizing image to width:', width);
     const resizedBuffer = await sharp(buffer, {
-      failOnError: true,
-      pages: -1 // Include all pages for multi-page images
+      failOnError: true
     })
     .resize(parseInt(width), null, { 
       fit: 'contain',
@@ -256,9 +204,8 @@ app.post('/resize-image', async (req, res) => {
 
     console.log('Resized image, new size:', resizedBuffer.length, 'bytes');
 
-    // Send the resized image back with the correct content type
-    const outputContentType = `image/${metadata.format}`;
-    res.set('Content-Type', outputContentType);
+    // Send the resized image back
+    res.set('Content-Type', contentType || `image/${metadata.format}`);
     res.set('Cache-Control', 'no-cache');
     res.send(resizedBuffer);
     console.log('Successfully sent resized image');
