@@ -247,50 +247,23 @@ function App() {
         throw new Error(`Failed to resize image: ${JSON.stringify(errorData)}`);
       }
 
-      // Get the resized image as a blob
-      const resizedBlob = await resizeResponse.blob();
-      console.log('Got resized image blob:', resizedBlob.size, 'bytes');
-      
-      // Create a File object from the blob
-      const resizedFile = new File([resizedBlob], 
-        file.name.replace(/\.[^/.]+$/, '') + '_resized.jpg', 
-        { type: 'image/jpeg' }
-      );
-      console.log('Created resized file:', resizedFile);
-
-      // Create form data for the upload
-      setStatus('Uploading resized image...');
-      const uploadFormData = new FormData();
-      uploadFormData.append('query', `mutation($file: File!) {
-        add_file_to_column(
-          item_id: ${context.itemId},
-          column_id: "${itemData.targetFileColumnId}",
-          file: $file
-        ) {
-          id
-        }
-      }`);
-      uploadFormData.append('variables', JSON.stringify({ file: null }));
-      uploadFormData.append('map', JSON.stringify({ "0": ["variables.file"] }));
-      uploadFormData.append('0', resizedFile);
-
-      // Upload the resized image
-      console.log('Uploading resized file to Monday.com');
-      const uploadResponse = await fetch('/upload-to-monday', {
-        method: 'POST',
-        headers: {
-          'Authorization': token
-        },
-        body: uploadFormData
+      const resizeResult = await resizeResponse.json();
+      console.log('Got resize result:', {
+        contentType: resizeResult.contentType,
+        size: resizeResult.size
       });
 
-      if (!uploadResponse.ok) {
-        const errorData = await uploadResponse.json();
-        console.error('Upload error response:', errorData);
-        throw new Error(`Failed to upload resized image: ${JSON.stringify(errorData)}`);
-      }
+      // Create the mutation to add the file
+      setStatus('Uploading resized image...');
+      const mutation = `mutation {
+        add_file_to_column(item_id: ${context.itemId}, column_id: "${itemData.targetFileColumnId}", file: "${resizeResult.data}") {
+          id
+        }
+      }`;
 
-      const uploadResult = await uploadResponse.json();
+      // Upload using Monday SDK
+      console.log('Uploading resized file to Monday.com');
+      const uploadResult = await monday.api(mutation);
       console.log("Upload response:", uploadResult);
 
       if (uploadResult.data?.add_file_to_column?.id) {

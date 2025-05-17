@@ -141,7 +141,7 @@ async function downloadFileFromMonday(fileUrl, token) {
 app.post('/resize-image', async (req, res) => {
   try {
     console.log('Received resize request');
-    const { fileUrl, width, token, assetId } = req.body;
+    const { fileUrl, width, token } = req.body;
     
     // Validate required parameters
     if (!fileUrl || !width || !token) {
@@ -233,13 +233,25 @@ app.post('/resize-image', async (req, res) => {
         fit: 'contain',
         withoutEnlargement: true
       })
-      .toFormat(metadata.format, {
+      .toFormat('jpeg', {
         quality: 85,
         chromaSubsampling: '4:4:4'
       })
       .toBuffer();
 
       console.log('Resized image, new size:', resizedBuffer.length, 'bytes');
+      
+      // Convert to base64
+      const base64Image = resizedBuffer.toString('base64');
+      console.log('Converted to base64, length:', base64Image.length);
+
+      // Return base64 data and content type
+      res.json({
+        data: base64Image,
+        contentType: 'image/jpeg',
+        size: resizedBuffer.length
+      });
+
     } catch (resizeError) {
       console.error('Error resizing image:', resizeError);
       return res.status(500).json({ 
@@ -247,12 +259,6 @@ app.post('/resize-image', async (req, res) => {
         details: resizeError.message
       });
     }
-
-    // Send the resized image back
-    res.set('Content-Type', contentType || `image/${metadata.format}`);
-    res.set('Cache-Control', 'no-cache');
-    res.send(resizedBuffer);
-    console.log('Successfully sent resized image');
   } catch (error) {
     console.error('Error processing image:', error);
     res.status(500).json({ 
