@@ -269,10 +269,7 @@ function App() {
       }
 
       const resizeResult = await resizeResponse.json();
-      console.log('Got resize result:', {
-        contentType: resizeResult.contentType,
-        size: resizeResult.size
-      });
+      console.log('Got resize result:', resizeResult);
 
       // Create a file object from the base64 data
       const binaryData = atob(resizeResult.data);
@@ -301,14 +298,17 @@ function App() {
           throw new Error('Server is not responding');
         }
 
+        // Create form data for the upload
+        const formData = new FormData();
+        formData.append('file', fileToUpload);
+
         // Now do the upload
         const uploadResponse = await fetch('/proxy-upload', {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'multipart/form-data'
+            'Authorization': `Bearer ${token}`
           },
-          body: await fileToUpload.arrayBuffer()
+          body: formData
         });
 
         console.log('Upload response status:', uploadResponse.status);

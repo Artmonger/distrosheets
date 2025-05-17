@@ -289,12 +289,12 @@ app.post('/resize-image', async (req, res) => {
   }
 });
 
-// Simple health check endpoint
+// Health check endpoint
 app.get('/health', (req, res) => {
   res.json({ status: 'ok' });
 });
 
-app.post('/proxy-upload', express.raw({ type: '*/*', limit: '5mb' }), async (req, res) => {
+app.post('/proxy-upload', upload.single('file'), async (req, res) => {
   try {
     console.log('Starting file upload process');
     const token = req.headers['authorization'];
@@ -306,9 +306,9 @@ app.post('/proxy-upload', express.raw({ type: '*/*', limit: '5mb' }), async (req
 
     // Create form data
     const form = new FormData();
-    form.append('file', req.body, {
-      filename: 'resized_image.jpg',
-      contentType: 'image/jpeg'
+    form.append('file', req.file.buffer, {
+      filename: req.file.originalname || 'resized_image.jpg',
+      contentType: req.file.mimetype || 'image/jpeg'
     });
 
     // Upload to Monday.com
@@ -316,11 +316,9 @@ app.post('/proxy-upload', express.raw({ type: '*/*', limit: '5mb' }), async (req
     const uploadResponse = await fetch('https://files.monday.com/upload', {
       method: 'POST',
       headers: {
-        'Authorization': token.startsWith('Bearer ') ? token : `Bearer ${token}`,
-        // Let form-data set its own content-type with boundary
+        'Authorization': token.startsWith('Bearer ') ? token : `Bearer ${token}`
       },
-      body: form,
-      timeout: 10000 // 10 second timeout
+      body: form
     });
 
     console.log('Monday.com response status:', uploadResponse.status);
