@@ -9,21 +9,30 @@ const monday = mondaySdk();
 const initializeMondaySdk = async () => {
   return new Promise((resolve, reject) => {
     try {
-      // First check if SDK is already initialized
-      if (monday && window.mondaySDK) {
-        console.log('Monday SDK already initialized');
+      // First check if SDK is already initialized and working
+      if (monday && window.mondaySDK && monday.api) {
+        console.log('Monday SDK already initialized and ready');
         resolve(monday);
         return;
       }
 
       console.log('Waiting for Monday SDK initialization...');
       let attempts = 0;
-      const maxAttempts = 50; // 5 seconds total with 100ms intervals
+      const maxAttempts = 100; // 10 seconds total with 100ms intervals
+      
+      // Add script tag if it doesn't exist
+      if (!document.getElementById('monday-sdk-js')) {
+        const script = document.createElement('script');
+        script.id = 'monday-sdk-js';
+        script.src = 'https://cdn.monday.com/monday-sdk-js/0.5.2/monday-sdk-client.js';
+        document.head.appendChild(script);
+      }
 
       const checkInterval = setInterval(() => {
         attempts++;
         
-        if (monday && window.mondaySDK) {
+        // Check if SDK is fully initialized and API is available
+        if (monday && window.mondaySDK && monday.api) {
           console.log('Monday SDK initialized successfully');
           clearInterval(checkInterval);
           resolve(monday);
@@ -32,7 +41,7 @@ const initializeMondaySdk = async () => {
 
         if (attempts >= maxAttempts) {
           clearInterval(checkInterval);
-          reject(new Error('Monday SDK initialization timeout after 5 seconds'));
+          reject(new Error('Monday SDK initialization timeout after 10 seconds'));
         }
       }, 100);
 
@@ -114,7 +123,7 @@ function App() {
   const [status, setStatus] = useState('');
   const [sdkReady, setSdkReady] = useState(false);
   const initAttempts = React.useRef(0);
-  const maxInitAttempts = 3;
+  const maxInitAttempts = 5; // Increased from 3 to 5 attempts
 
   // Use a ref to track if we've already fetched data for the current context
   const dataFetchedRef = React.useRef({});
@@ -129,6 +138,15 @@ function App() {
         await initializeMondaySdk();
         
         if (!mounted) return;
+
+        // Verify SDK is working by making a test API call
+        try {
+          await monday.api('query { me { id } }');
+          console.log('SDK API test successful');
+        } catch (apiError) {
+          console.error('SDK API test failed:', apiError);
+          throw new Error('SDK initialization succeeded but API test failed');
+        }
 
         // Set up context listener only after SDK is initialized
         monday.listen('context', (res) => {
@@ -186,7 +204,8 @@ function App() {
           if (initAttempts.current < maxInitAttempts) {
             console.log(`Retrying initialization (attempt ${initAttempts.current + 1}/${maxInitAttempts})...`);
             initAttempts.current++;
-            setTimeout(initMondaySdk, 1000); // Wait 1 second before retrying
+            // Increase delay between retries
+            setTimeout(initMondaySdk, 2000); // Wait 2 seconds before retrying
           } else {
             setError(`Failed to initialize Monday SDK after ${maxInitAttempts} attempts: ${err.message}`);
             setLoading(false);
