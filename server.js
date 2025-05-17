@@ -303,20 +303,26 @@ app.post('/proxy-upload', upload.single('file'), async (req, res) => {
       return res.status(400).json({ error: 'Missing token' });
     }
 
-    // Create form data
+    // Initialize Monday SDK with token
+    const monday = initializeMondaySdk(token);
+
+    // Create form data with proper boundaries
     const form = new FormData();
     form.append('file', req.file.buffer, {
       filename: req.file.originalname || 'resized_image.jpg',
       contentType: req.file.mimetype || 'image/jpeg'
     });
 
-    // Upload directly to Monday.com's API with GraphQL mutation
+    // Get the form boundary
+    const formHeaders = form.getHeaders();
+
+    // Upload directly to Monday.com's API
     console.log('Uploading to Monday.com');
     const uploadResponse = await fetch('https://api.monday.com/v2/file', {
       method: 'POST',
       headers: {
-        'Authorization': token,
-        'Content-Type': 'multipart/form-data'
+        'Authorization': `Bearer ${token}`,
+        ...formHeaders  // This includes the correct Content-Type with boundary
       },
       body: form
     });

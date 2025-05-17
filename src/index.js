@@ -12,12 +12,19 @@ const initMondayClient = async () => {
     const monday = mondaySdk();
     window.monday = monday;
     
-    // Initialize without waiting for script
+    // Initialize without token - it will be set by Monday.com's platform
     monday.setToken('');
     
     // Listen for init event
     monday.listen('init', (res) => {
       console.log('Monday Init Event:', res);
+      // Get and set the token after init
+      monday.get('sessionToken').then(({ data }) => {
+        if (data) {
+          monday.setToken(data);
+          console.log('Session token set successfully');
+        }
+      });
     });
     
     // Listen for context changes
