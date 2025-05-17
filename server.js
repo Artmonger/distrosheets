@@ -59,18 +59,20 @@ function validateContentType(contentType) {
 // Helper function to get file from Monday.com
 async function downloadFileFromMonday(fileUrl, token) {
   console.log('Starting file download process...');
+  console.log('File URL:', fileUrl);
+  console.log('Token available:', !!token);
   
   // Initialize Monday SDK with token
   mondaySdk.setToken(token);
   
-  // First try to download directly with token
   try {
     console.log('Attempting direct download...');
     const response = await fetch(fileUrl, {
       headers: {
-        'Authorization': `Bearer ${token}`,
-        'Accept': 'image/*',
-        'monday-api-token': token
+        'Authorization': token,
+        'Accept': '*/*',
+        'monday-api-token': token,
+        'User-Agent': 'monday-image-resizer'
       },
       redirect: 'follow'
     });
@@ -82,9 +84,33 @@ async function downloadFileFromMonday(fileUrl, token) {
     });
 
     if (response.ok) {
-      // Validate content type before returning
-      const contentType = validateContentType(response.headers.get('content-type'));
-      console.log('Valid content type received:', contentType);
+      const contentType = response.headers.get('content-type');
+      console.log('Received content type:', contentType);
+      
+      // If no content type header, try to infer from URL
+      if (!contentType || contentType === 'application/octet-stream') {
+        const fileExtension = fileUrl.split('.').pop().toLowerCase();
+        const mimeTypes = {
+          'jpg': 'image/jpeg',
+          'jpeg': 'image/jpeg',
+          'png': 'image/png',
+          'gif': 'image/gif',
+          'webp': 'image/webp',
+          'bmp': 'image/bmp'
+        };
+        
+        if (mimeTypes[fileExtension]) {
+          console.log('Inferred content type from extension:', mimeTypes[fileExtension]);
+          // Create a new response with the correct content type
+          const buffer = await response.arrayBuffer();
+          return new Response(buffer, {
+            headers: {
+              'content-type': mimeTypes[fileExtension]
+            }
+          });
+        }
+      }
+      
       return response;
     }
 
@@ -120,7 +146,8 @@ async function downloadFileFromMonday(fileUrl, token) {
     console.log('Attempting download with signed URL...');
     const signedResponse = await fetch(signedUrl, {
       headers: {
-        'Accept': 'image/*'
+        'Accept': '*/*',
+        'User-Agent': 'monday-image-resizer'
       }
     });
 
@@ -134,9 +161,30 @@ async function downloadFileFromMonday(fileUrl, token) {
       throw new Error(`Failed to download with signed URL: ${signedResponse.status} ${signedResponse.statusText}`);
     }
 
-    // Validate content type before returning
-    const contentType = validateContentType(signedResponse.headers.get('content-type'));
-    console.log('Valid content type received from signed URL:', contentType);
+    // Handle content type for signed URL response
+    const signedContentType = signedResponse.headers.get('content-type');
+    if (!signedContentType || signedContentType === 'application/octet-stream') {
+      const fileExtension = fileUrl.split('.').pop().toLowerCase();
+      const mimeTypes = {
+        'jpg': 'image/jpeg',
+        'jpeg': 'image/jpeg',
+        'png': 'image/png',
+        'gif': 'image/gif',
+        'webp': 'image/webp',
+        'bmp': 'image/bmp'
+      };
+      
+      if (mimeTypes[fileExtension]) {
+        console.log('Inferred content type from extension for signed URL:', mimeTypes[fileExtension]);
+        const buffer = await signedResponse.arrayBuffer();
+        return new Response(buffer, {
+          headers: {
+            'content-type': mimeTypes[fileExtension]
+          }
+        });
+      }
+    }
+
     return signedResponse;
 
   } catch (error) {
