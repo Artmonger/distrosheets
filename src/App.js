@@ -307,9 +307,8 @@ function App() {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`,
-            'monday-api-token': token
+            'API-Version': '2024-01'
           },
-          // Don't set Content-Type - browser will set it with correct boundary
           body: formData
         });
 

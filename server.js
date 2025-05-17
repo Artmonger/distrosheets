@@ -296,18 +296,20 @@ app.get('/health', (req, res) => {
 app.post('/proxy-upload', upload.single('file'), async (req, res) => {
   try {
     console.log('Starting file upload process');
-    let token = req.headers['authorization'];
+    let token = req.headers['authorization'] || req.headers['monday-api-token'];
     
     if (!token) {
       console.log('Missing token in request');
       return res.status(400).json({ error: 'Missing token' });
     }
 
-    // Remove Bearer prefix if present
-    token = token.replace('Bearer ', '');
+    // Ensure token has Bearer prefix
+    if (!token.startsWith('Bearer ')) {
+      token = `Bearer ${token}`;
+    }
 
     // Initialize Monday SDK with token
-    const monday = initializeMondaySdk(token);
+    const monday = initializeMondaySdk(token.replace('Bearer ', ''));
 
     // Create form data with proper boundaries
     const form = new FormData();
@@ -316,7 +318,7 @@ app.post('/proxy-upload', upload.single('file'), async (req, res) => {
       contentType: req.file.mimetype || 'image/jpeg'
     });
 
-    // Get the form boundary
+    // Get the form boundary and headers
     const formHeaders = form.getHeaders();
 
     // Upload directly to Monday.com's API
@@ -324,10 +326,10 @@ app.post('/proxy-upload', upload.single('file'), async (req, res) => {
     const uploadResponse = await fetch('https://api.monday.com/v2/file', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${token}`,
-        'API-Version': '2024-01',  // Add API version header
-        'monday-api-token': token,
-        'Accept': '*/*',
+        'Authorization': token,
+        'API-Version': '2024-01',
+        'Content-Type': formHeaders['content-type'],
+        'Accept': 'application/json',
         ...formHeaders
       },
       body: form
