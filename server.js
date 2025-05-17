@@ -42,10 +42,14 @@ app.post('/resize-image', async (req, res) => {
     
     // Download the image with proper headers for Monday.com's protected files
     const response = await fetch(fileUrl, {
+      method: 'GET',
       headers: {
         'Authorization': `Bearer ${token}`,
-        'Accept': '*/*',
-        'Cache-Control': 'no-cache'
+        'Accept': 'image/*',
+        'Accept-Encoding': 'gzip, deflate, br',
+        'Connection': 'keep-alive',
+        'Cache-Control': 'no-cache',
+        'monday-api-token': token
       },
       redirect: 'follow',
       follow: 5
