@@ -306,8 +306,8 @@ function App() {
         const uploadResponse = await fetch('/proxy-upload', {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${token}`,  // Add Bearer prefix
-            'monday-api-token': token  // Add monday-api-token header
+            'Authorization': `Bearer ${token}`,
+            'monday-api-token': token
           },
           // Don't set Content-Type - browser will set it with correct boundary
           body: formData
