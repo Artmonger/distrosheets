@@ -274,8 +274,7 @@ function App() {
       const uploadResponse = await fetch('/proxy-upload', {
         method: 'POST',
         headers: {
-          'Authorization': token,
-          'Content-Type': 'multipart/form-data'
+          'Authorization': token
         },
         body: formData
       });

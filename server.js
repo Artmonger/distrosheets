@@ -4,9 +4,14 @@ const cors = require('cors');
 const fetch = require('node-fetch');
 const sharp = require('sharp');
 const mondaySdk = require('monday-sdk-js')();
+const multer = require('multer');
+const FormData = require('form-data');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+
+// Configure multer for handling file uploads
+const upload = multer({ storage: multer.memoryStorage() });
 
 // CORS configuration
 app.use(cors({
@@ -270,7 +275,7 @@ app.post('/resize-image', async (req, res) => {
 });
 
 // New proxy endpoint for file uploads to Monday.com
-app.post('/proxy-upload', async (req, res) => {
+app.post('/proxy-upload', upload.single('file'), async (req, res) => {
   try {
     const token = req.headers['authorization'];
     
@@ -279,17 +284,28 @@ app.post('/proxy-upload', async (req, res) => {
       return res.status(400).json({ error: 'Missing token' });
     }
 
+    if (!req.file) {
+      console.error('No file received');
+      return res.status(400).json({ error: 'No file received' });
+    }
+
     console.log('Proxying file upload to Monday.com with token:', token ? 'present' : 'missing');
     
+    // Create form data for Monday.com upload
+    const form = new FormData();
+    form.append('file', req.file.buffer, {
+      filename: req.file.originalname,
+      contentType: req.file.mimetype
+    });
+
     // Forward the file upload to Monday.com
     const uploadResponse = await fetch('https://files.monday.com/upload', {
       method: 'POST',
       headers: {
         'Authorization': token,
-        'Content-Type': 'multipart/form-data'
+        ...form.getHeaders()
       },
-      body: req.body,
-      duplex: 'half'
+      body: form
     });
 
     if (!uploadResponse.ok) {
