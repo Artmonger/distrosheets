@@ -9,26 +9,35 @@ const monday = mondaySdk();
 const initializeMondaySdk = async () => {
   return new Promise((resolve, reject) => {
     try {
-      // Check if window.mondaySDK is available
-      if (window.mondaySDK) {
+      // First check if SDK is already initialized
+      if (monday && window.mondaySDK) {
+        console.log('Monday SDK already initialized');
         resolve(monday);
         return;
       }
 
-      // If not available, wait for it
+      console.log('Waiting for Monday SDK initialization...');
+      let attempts = 0;
+      const maxAttempts = 50; // 5 seconds total with 100ms intervals
+
       const checkInterval = setInterval(() => {
-        if (window.mondaySDK) {
+        attempts++;
+        
+        if (monday && window.mondaySDK) {
+          console.log('Monday SDK initialized successfully');
           clearInterval(checkInterval);
           resolve(monday);
+          return;
+        }
+
+        if (attempts >= maxAttempts) {
+          clearInterval(checkInterval);
+          reject(new Error('Monday SDK initialization timeout after 5 seconds'));
         }
       }, 100);
 
-      // Timeout after 10 seconds
-      setTimeout(() => {
-        clearInterval(checkInterval);
-        reject(new Error('Monday SDK initialization timeout'));
-      }, 10000);
     } catch (err) {
+      console.error('Error during SDK initialization:', err);
       reject(err);
     }
   });
@@ -104,6 +113,8 @@ function App() {
   const [error, setError] = useState(null);
   const [status, setStatus] = useState('');
   const [sdkReady, setSdkReady] = useState(false);
+  const initAttempts = React.useRef(0);
+  const maxInitAttempts = 3;
 
   // Use a ref to track if we've already fetched data for the current context
   const dataFetchedRef = React.useRef({});
@@ -114,9 +125,16 @@ function App() {
 
     const initMondaySdk = async () => {
       try {
-        // Set up context listener
+        // Initialize SDK first
+        await initializeMondaySdk();
+        
+        if (!mounted) return;
+
+        // Set up context listener only after SDK is initialized
         monday.listen('context', (res) => {
           console.log('Context event received:', res);
+          if (!mounted) return;
+          
           if (res.data) {
             const contextKey = `${res.data.boardId}-${res.data.itemId}`;
             if (!dataFetchedRef.current[contextKey]) {
@@ -137,6 +155,8 @@ function App() {
         const contextRes = await monday.get('context');
         console.log('Initial context response:', contextRes);
         
+        if (!mounted) return;
+
         if (contextRes.data) {
           const contextKey = `${contextRes.data.boardId}-${contextRes.data.itemId}`;
           if (!dataFetchedRef.current[contextKey]) {
@@ -162,8 +182,15 @@ function App() {
       } catch (err) {
         console.error("Initialization error:", err);
         if (mounted) {
-          setError(err.message);
-          setLoading(false);
+          // Retry initialization if under max attempts
+          if (initAttempts.current < maxInitAttempts) {
+            console.log(`Retrying initialization (attempt ${initAttempts.current + 1}/${maxInitAttempts})...`);
+            initAttempts.current++;
+            setTimeout(initMondaySdk, 1000); // Wait 1 second before retrying
+          } else {
+            setError(`Failed to initialize Monday SDK after ${maxInitAttempts} attempts: ${err.message}`);
+            setLoading(false);
+          }
         }
       }
     };
