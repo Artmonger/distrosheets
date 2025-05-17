@@ -45,9 +45,7 @@ app.post('/resize-image', async (req, res) => {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${token}`,
-        'Accept': 'image/*',
-        'Accept-Encoding': 'gzip, deflate, br',
-        'Connection': 'keep-alive',
+        'Accept': '*/*',
         'Cache-Control': 'no-cache',
         'monday-api-token': token
       },
@@ -68,12 +66,20 @@ app.post('/resize-image', async (req, res) => {
     const contentType = response.headers.get('content-type');
     console.log('Response content type:', contentType);
 
+    if (!contentType || !contentType.startsWith('image/')) {
+      console.error('Invalid content type:', contentType);
+      throw new Error('Invalid content type received');
+    }
+
     const buffer = await response.buffer();
     console.log('Downloaded image, size:', buffer.length, 'bytes');
 
     if (buffer.length === 0) {
       throw new Error('Downloaded file is empty');
     }
+
+    // Log first few bytes of buffer to check format
+    console.log('First bytes of image:', buffer.slice(0, 16));
 
     // Get image metadata and validate it's an image
     let metadata;
@@ -86,21 +92,29 @@ app.post('/resize-image', async (req, res) => {
       }
     } catch (err) {
       console.error('Error reading image metadata:', err);
-      throw new Error('Invalid image file');
+      // Try to identify the issue
+      if (err.message.includes('Input buffer contains unsupported image format')) {
+        throw new Error('Unsupported image format');
+      } else {
+        throw new Error('Invalid image file: ' + err.message);
+      }
     }
 
     // Resize the image
     console.log('Resizing image to width:', width);
-    const resizedBuffer = await sharp(buffer)
-      .resize(parseInt(width), null, { 
-        fit: 'contain',
-        withoutEnlargement: true
-      })
-      .toFormat(metadata.format, {
-        quality: 85,
-        chromaSubsampling: '4:4:4'
-      })
-      .toBuffer();
+    const resizedBuffer = await sharp(buffer, {
+      failOnError: true,
+      pages: -1 // Include all pages for multi-page images
+    })
+    .resize(parseInt(width), null, { 
+      fit: 'contain',
+      withoutEnlargement: true
+    })
+    .toFormat(metadata.format, {
+      quality: 85,
+      chromaSubsampling: '4:4:4'
+    })
+    .toBuffer();
 
     console.log('Resized image, new size:', resizedBuffer.length, 'bytes');
 
