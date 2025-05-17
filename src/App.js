@@ -4,8 +4,15 @@ import './App.css';
 
 // Helper function to check if a file is an image
 const isImageFile = (file) => {
-  const imageTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/bmp', 'image/webp'];
-  return file && file.type && imageTypes.includes(file.type.toLowerCase());
+  // Check if the file has the isImage property from Monday.com
+  if (file.isImage === 'true') {
+    return true;
+  }
+
+  // Fallback check for file name extension
+  const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp'];
+  const fileName = file.name.toLowerCase();
+  return imageExtensions.some(ext => fileName.endsWith(ext));
 };
 
 // Helper function to get file URL from Monday.com
