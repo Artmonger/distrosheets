@@ -2,6 +2,38 @@ import React, { useEffect, useState } from 'react';
 import mondaySdk from 'monday-sdk-js';
 import './App.css';
 
+// Initialize Monday SDK outside of component
+const monday = mondaySdk();
+
+// Ensure SDK is initialized before use
+const initializeMondaySdk = async () => {
+  return new Promise((resolve, reject) => {
+    try {
+      // Check if window.mondaySDK is available
+      if (window.mondaySDK) {
+        resolve(monday);
+        return;
+      }
+
+      // If not available, wait for it
+      const checkInterval = setInterval(() => {
+        if (window.mondaySDK) {
+          clearInterval(checkInterval);
+          resolve(monday);
+        }
+      }, 100);
+
+      // Timeout after 10 seconds
+      setTimeout(() => {
+        clearInterval(checkInterval);
+        reject(new Error('Monday SDK initialization timeout'));
+      }, 10000);
+    } catch (err) {
+      reject(err);
+    }
+  });
+};
+
 // Helper function to check if a file is an image
 const isImageFile = (file) => {
   // Check if the file has the isImage property from Monday.com
@@ -70,18 +102,19 @@ function App() {
   const [itemData, setItemData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [monday, setMonday] = useState(null);
   const [status, setStatus] = useState('');
+  const [sdkReady, setSdkReady] = useState(false);
 
   useEffect(() => {
     // Initialize Monday SDK
     const initMondaySdk = async () => {
       try {
-        const mondayInstance = mondaySdk();
-        setMonday(mondayInstance);
+        // Wait for SDK to be ready
+        await initializeMondaySdk();
+        setSdkReady(true);
 
         // Get context
-        const contextRes = await mondayInstance.get("context");
+        const contextRes = await monday.get("context");
         if (!contextRes.data) {
           throw new Error('No context data received');
         }
@@ -90,7 +123,7 @@ function App() {
 
         // If we have both boardId and itemId, fetch the item data
         if (contextRes.data.boardId && contextRes.data.itemId) {
-          await fetchItemData(contextRes.data.itemId, contextRes.data.boardId, mondayInstance);
+          await fetchItemData(contextRes.data.itemId, contextRes.data.boardId);
         }
 
         setLoading(false);
@@ -104,235 +137,272 @@ function App() {
     initMondaySdk();
   }, []);
 
-  const fetchItemData = async (itemId, boardId, mondayInstance) => {
-    try {
-      setStatus('Fetching board data...');
-      // Get the board columns
-      const columnsQuery = `query {
-        boards (ids: ${boardId}) {
-          columns {
-            id
-            title
-            type
-            settings_str
-          }
-        }
-      }`;
+  // Prevent any API calls if SDK is not ready
+  const ensureSdkReady = async (callback) => {
+    if (!sdkReady) {
+      setError('Monday SDK is not ready yet. Please wait...');
+      return false;
+    }
+    return callback();
+  };
 
-      const columnsResponse = await mondayInstance.api(columnsQuery);
-      console.log("All board columns:", columnsResponse.data?.boards?.[0]?.columns);
-
-      if (!columnsResponse.data?.boards?.[0]) {
-        throw new Error('Failed to fetch board columns');
-      }
-
-      setStatus('Fetching item data...');
-      // Get the item data
-      const itemQuery = `query {
-        items (ids: ${itemId}) {
-          id
-          name
-          column_values {
-            id
-            column {
+  const fetchItemData = async (itemId, boardId) => {
+    return ensureSdkReady(async () => {
+      try {
+        setStatus('Fetching board data...');
+        // Get the board columns
+        const columnsQuery = `query {
+          boards (ids: ${boardId}) {
+            columns {
               id
               title
               type
+              settings_str
             }
-            value
-            text
           }
+        }`;
+
+        const columnsResponse = await monday.api(columnsQuery);
+        console.log("All board columns:", columnsResponse.data?.boards?.[0]?.columns);
+
+        if (!columnsResponse.data?.boards?.[0]) {
+          throw new Error('Failed to fetch board columns');
         }
-      }`;
 
-      const itemResponse = await mondayInstance.api(itemQuery);
-      console.log("Item column values:", itemResponse.data?.items?.[0]?.column_values);
+        setStatus('Fetching item data...');
+        // Get the item data
+        const itemQuery = `query {
+          items (ids: ${itemId}) {
+            id
+            name
+            column_values {
+              id
+              column {
+                id
+                title
+                type
+              }
+              value
+              text
+            }
+          }
+        }`;
 
-      if (!itemResponse.data?.items?.[0]) {
-        throw new Error('Failed to fetch item data');
+        const itemResponse = await monday.api(itemQuery);
+        console.log("Item column values:", itemResponse.data?.items?.[0]?.column_values);
+
+        if (!itemResponse.data?.items?.[0]) {
+          throw new Error('Failed to fetch item data');
+        }
+
+        // Find the file columns
+        const columns = columnsResponse.data.boards[0].columns;
+        const fileColumns = columns.filter(col => col.type === 'file');
+        
+        console.log('File columns:', fileColumns);
+
+        if (fileColumns.length < 2) {
+          throw new Error('Please add two file columns to your board - one for original images and one for resized images.');
+        }
+
+        setItemData({
+          item: itemResponse.data.items[0],
+          columns: columnsResponse.data.boards[0].columns,
+          sourceFileColumnId: fileColumns[0]?.id,
+          targetFileColumnId: fileColumns[1]?.id
+        });
+
+        setStatus('Ready to resize images');
+        setError(null);
+      } catch (err) {
+        console.error("Error fetching data:", err);
+        setError(err.message);
+        throw err;
       }
-
-      // Find the file columns
-      const columns = columnsResponse.data.boards[0].columns;
-      const fileColumns = columns.filter(col => col.type === 'file');
-      
-      console.log('File columns:', fileColumns);
-
-      if (fileColumns.length < 2) {
-        throw new Error('Please add two file columns to your board - one for original images and one for resized images.');
-      }
-
-      setItemData({
-        item: itemResponse.data.items[0],
-        columns: columnsResponse.data.boards[0].columns,
-        sourceFileColumnId: fileColumns[0]?.id,
-        targetFileColumnId: fileColumns[1]?.id
-      });
-
-      setStatus('Ready to resize images');
-      setError(null);
-    } catch (err) {
-      console.error("Error fetching data:", err);
-      setError(err.message);
-      throw err;
-    }
+    });
   };
 
   const handleImageResize = async () => {
-    try {
-      setLoading(true);
-      setStatus('Starting image resize process...');
-      console.log('Current item data:', itemData);
-      
-      // Get the session token for authentication
-      const tokenResponse = await monday.get('sessionToken');
-      const token = tokenResponse.data;
-      console.log('Got session token:', token ? 'yes' : 'no');
-      
-      if (!token) {
-        throw new Error('No session token available');
-      }
-      
-      // Find the source file column using the stored ID
-      const sourceColumn = itemData.item.column_values.find(cv => cv.column.id === itemData.sourceFileColumnId);
-      console.log('Source column:', sourceColumn);
-      
-      if (!sourceColumn?.value) {
-        throw new Error('No source file found - please add an image to the first file column');
-      }
-
-      const fileValue = JSON.parse(sourceColumn.value);
-      console.log('File value:', fileValue);
-      
-      const file = fileValue.files[0];
-      console.log('File to process:', file);
-      
-      if (!file) {
-        throw new Error('No file found in source column');
-      }
-      
-      if (!isImageFile(file)) {
-        throw new Error('Source file is not an image - please add a valid image file (JPEG, PNG, GIF, BMP, or WebP)');
-      }
-
-      // Get the file URL
-      setStatus('Getting file URL...');
-      console.log('Getting file URL for asset:', file.assetId);
-      const { url } = await getFileUrl(monday, file.assetId, file.name);
-      
-      if (!url) {
-        throw new Error('Failed to get file URL');
-      }
-      
-      console.log('Got file URL:', url);
-      
-      // Call our server endpoint to resize the image
-      setStatus('Resizing image...');
-      console.log('Sending resize request to server');
-      const resizeResponse = await fetch('/resize-image', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          fileUrl: url,
-          token: token,
-          width: '800'
-        })
-      });
-
-      if (!resizeResponse.ok) {
-        const errorData = await resizeResponse.json();
-        console.error('Resize error response:', errorData);
-        throw new Error(`Failed to resize image: ${JSON.stringify(errorData)}`);
-      }
-
-      const resizeResult = await resizeResponse.json();
-      console.log('Got resize result:', {
-        contentType: resizeResult.contentType,
-        size: resizeResult.size
-      });
-
-      // Create a file object from the base64 data
-      const binaryData = atob(resizeResult.data);
-      const bytes = new Uint8Array(binaryData.length);
-      for (let i = 0; i < binaryData.length; i++) {
-        bytes[i] = binaryData.charCodeAt(i);
-      }
-      
-      const blob = new Blob([bytes], { type: resizeResult.contentType });
-      const fileToUpload = new File([blob], 'resized_image.jpg', { type: resizeResult.contentType });
-
-      // Create form data for file upload
-      const formData = new FormData();
-      formData.append('file', fileToUpload);
-
-      // First upload the file to Monday.com's file storage through our proxy
-      setStatus('Uploading resized image...');
-      console.log('Uploading with token:', token ? 'present' : 'missing');
-      
-      const uploadResponse = await fetch('/proxy-upload', {
-        method: 'POST',
-        headers: {
-          'Authorization': token
-        },
-        body: formData
-      });
-
-      if (!uploadResponse.ok) {
-        const errorData = await uploadResponse.json();
-        console.error('Upload failed:', {
-          status: uploadResponse.status,
-          statusText: uploadResponse.statusText,
-          error: errorData
-        });
-        throw new Error(`Failed to upload file: ${errorData.error || errorData.details || uploadResponse.statusText}`);
-      }
-
-      const uploadResult = await uploadResponse.json();
-      console.log('File upload response:', uploadResult);
-
-      if (!uploadResult.data || !uploadResult.data.id) {
-        throw new Error('Invalid upload response from Monday.com');
-      }
-
-      // Now create the mutation to link the file to the column
-      const mutation = `mutation {
-        change_column_value(
-          board_id: ${context.boardId}, 
-          item_id: ${context.itemId}, 
-          column_id: "${itemData.targetFileColumnId}", 
-          value: ${JSON.stringify(JSON.stringify({
-            files: [{
-              assetId: uploadResult.data.id,
-              name: fileToUpload.name
-            }]
-          }))}
-        ) {
-          id
+    return ensureSdkReady(async () => {
+      try {
+        setLoading(true);
+        setStatus('Starting image resize process...');
+        console.log('Current item data:', itemData);
+        
+        // Get the session token for authentication
+        const tokenResponse = await monday.get('sessionToken');
+        const token = tokenResponse.data;
+        console.log('Got session token:', token ? 'yes' : 'no');
+        
+        if (!token) {
+          throw new Error('No session token available');
         }
-      }`;
+        
+        // Find the source file column using the stored ID
+        const sourceColumn = itemData.item.column_values.find(cv => cv.column.id === itemData.sourceFileColumnId);
+        console.log('Source column:', sourceColumn);
+        
+        if (!sourceColumn?.value) {
+          throw new Error('No source file found - please add an image to the first file column');
+        }
 
-      // Link the file to the column
-      console.log('Linking file to column with mutation:', mutation);
-      const linkResult = await monday.api(mutation);
-      console.log("Link response:", linkResult);
+        const fileValue = JSON.parse(sourceColumn.value);
+        console.log('File value:', fileValue);
+        
+        const file = fileValue.files[0];
+        console.log('File to process:', file);
+        
+        if (!file) {
+          throw new Error('No file found in source column');
+        }
+        
+        if (!isImageFile(file)) {
+          throw new Error('Source file is not an image - please add a valid image file (JPEG, PNG, GIF, BMP, or WebP)');
+        }
 
-      if (linkResult.data?.change_column_value?.id) {
-        console.log('Successfully uploaded and linked resized image');
-        setStatus('Successfully resized and uploaded image!');
-        await fetchItemData(context.itemId, context.boardId, monday);
-        setError(null);
-      } else {
-        throw new Error('Failed to link file to column: ' + JSON.stringify(linkResult.errors || linkResult));
+        // Get the file URL
+        setStatus('Getting file URL...');
+        console.log('Getting file URL for asset:', file.assetId);
+        const { url } = await getFileUrl(monday, file.assetId, file.name);
+        
+        if (!url) {
+          throw new Error('Failed to get file URL');
+        }
+        
+        console.log('Got file URL:', url);
+        
+        // Call our server endpoint to resize the image
+        setStatus('Resizing image...');
+        console.log('Sending resize request to server');
+        const resizeResponse = await fetch('/resize-image', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            fileUrl: url,
+            token: token,
+            width: '800'
+          })
+        });
+
+        if (!resizeResponse.ok) {
+          const errorData = await resizeResponse.json();
+          console.error('Resize error response:', errorData);
+          throw new Error(`Failed to resize image: ${JSON.stringify(errorData)}`);
+        }
+
+        const resizeResult = await resizeResponse.json();
+        console.log('Got resize result:', {
+          contentType: resizeResult.contentType,
+          size: resizeResult.size
+        });
+
+        // Create a file object from the base64 data
+        const binaryData = atob(resizeResult.data);
+        const bytes = new Uint8Array(binaryData.length);
+        for (let i = 0; i < binaryData.length; i++) {
+          bytes[i] = binaryData.charCodeAt(i);
+        }
+        
+        const blob = new Blob([bytes], { type: resizeResult.contentType });
+        const fileToUpload = new File([blob], 'resized_image.jpg', { type: resizeResult.contentType });
+
+        const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+
+        if (blob.size > MAX_FILE_SIZE) {
+          throw new Error(`File size exceeds limit of ${MAX_FILE_SIZE / (1024 * 1024)}MB`);
+        }
+
+        // Create form data for file upload
+        const formData = new FormData();
+        formData.append('file', fileToUpload);
+
+        // Upload to our proxy endpoint
+        setStatus('Uploading resized image...');
+        console.log('Starting upload to proxy endpoint');
+        
+        try {
+          // First check server health
+          const healthCheck = await fetch('/health');
+          if (!healthCheck.ok) {
+            throw new Error('Server is not responding');
+          }
+
+          // Now do the upload
+          const uploadResponse = await fetch('/proxy-upload', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'multipart/form-data'
+            },
+            body: await fileToUpload.arrayBuffer()
+          });
+
+          console.log('Upload response status:', uploadResponse.status);
+          const responseText = await uploadResponse.text();
+          console.log('Upload response text:', responseText);
+
+          if (!uploadResponse.ok) {
+            throw new Error(`Upload failed (${uploadResponse.status}): ${responseText}`);
+          }
+
+          let uploadResult;
+          try {
+            uploadResult = JSON.parse(responseText);
+            console.log('Parsed upload result:', uploadResult);
+          } catch (err) {
+            console.error('Failed to parse upload response:', err);
+            throw new Error(`Invalid response from server: ${responseText}`);
+          }
+
+          if (!uploadResult.data || !uploadResult.data.id) {
+            console.error('Invalid upload result:', uploadResult);
+            throw new Error('Invalid upload response from Monday.com');
+          }
+
+          // Now create the mutation to link the file
+          const mutation = `mutation {
+            change_column_value(
+              board_id: ${context.boardId}, 
+              item_id: ${context.itemId}, 
+              column_id: "${itemData.targetFileColumnId}", 
+              value: ${JSON.stringify(JSON.stringify({
+                files: [{
+                  assetId: uploadResult.data.id,
+                  name: fileToUpload.name
+                }]
+              }))}
+            ) {
+              id
+            }
+          }`;
+
+          // Link the file to the column
+          console.log('Linking file to column with mutation:', mutation);
+          const linkResult = await monday.api(mutation);
+          console.log("Link response:", linkResult);
+
+          if (linkResult.data?.change_column_value?.id) {
+            console.log('Successfully uploaded and linked resized image');
+            setStatus('Successfully resized and uploaded image!');
+            await fetchItemData(context.itemId, context.boardId);
+            setError(null);
+          } else {
+            throw new Error('Failed to link file to column: ' + JSON.stringify(linkResult.errors || linkResult));
+          }
+        } catch (uploadError) {
+          console.error('Upload error:', uploadError);
+          throw new Error(`Upload failed: ${uploadError.message}`);
+        }
+      } catch (err) {
+        console.error("Error during image resize:", err);
+        setError('Failed to resize image: ' + err.message);
+        setStatus('Error occurred while processing image');
+      } finally {
+        setLoading(false);
       }
-    } catch (err) {
-      console.error("Error during image resize:", err);
-      setError('Failed to resize image: ' + err.message);
-      setStatus('Error occurred while processing image');
-    } finally {
-      setLoading(false);
-    }
+    });
   };
 
   const handleFileTransfer = async (fromColumnId, toColumnId) => {
@@ -370,7 +440,7 @@ function App() {
       console.log("Transfer response:", transferResponse);
 
       if (transferResponse.data?.change_column_value?.id) {
-        await fetchItemData(context.itemId, context.boardId, monday);
+        await fetchItemData(context.itemId, context.boardId);
         setError(null);
       } else {
         throw new Error('Failed to copy file - no confirmation received');

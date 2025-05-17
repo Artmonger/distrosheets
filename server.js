@@ -6,12 +6,49 @@ const sharp = require('sharp');
 const mondaySdk = require('monday-sdk-js')();
 const multer = require('multer');
 const FormData = require('form-data');
+const fs = require('fs');
+const os = require('os');
+const stream = require('stream');
+const { promisify } = require('util');
+const pipeline = promisify(stream.pipeline);
+
+// Initialize Monday SDK with better error handling
+const initializeMondaySdk = () => {
+  return new Promise((resolve, reject) => {
+    try {
+      if (!mondaySdk) {
+        throw new Error('Monday SDK failed to initialize');
+      }
+      console.log('Monday SDK initialized successfully');
+      resolve(mondaySdk);
+    } catch (error) {
+      console.error('Error initializing Monday SDK:', error);
+      reject(error);
+    }
+  });
+};
 
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// Configure multer for handling file uploads
-const upload = multer({ storage: multer.memoryStorage() });
+// Initialize SDK before setting up routes
+initializeMondaySdk().catch(error => {
+  console.error('Failed to initialize Monday SDK:', error);
+  process.exit(1);
+});
+
+// Configure multer with strict limits
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 5 * 1024 * 1024, // 5MB limit
+    files: 1
+  }
+});
+
+// Increase the request size limit for express
+app.use(express.json({ limit: '5mb' }));
+app.use(express.raw({ limit: '5mb' }));
 
 // CORS configuration
 app.use(cors({
@@ -21,20 +58,12 @@ app.use(cors({
     'http://localhost:3001',
     'https://artmonger.monday.com',
     'https://*.monday.com',
-    'https://monday.com',
-    'https://*.s3.amazonaws.com'
+    'https://monday.com'
   ],
   credentials: true,
   methods: ['GET', 'POST', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'monday-api-token', 'Accept', 'Content-Length'],
-  exposedHeaders: ['Content-Type', 'Authorization', 'Content-Length', 'Cache-Control']
+  allowedHeaders: ['Content-Type', 'Authorization', 'monday-api-token']
 }));
-
-// Parse JSON bodies with increased limit for large files
-app.use(express.json({ limit: '50mb' }));
-
-// Parse raw body for file uploads
-app.use(express.raw({ type: 'multipart/form-data', limit: '50mb' }));
 
 // Serve static files from the React app
 app.use(express.static(path.join(__dirname, 'build')));
@@ -274,71 +303,66 @@ app.post('/resize-image', async (req, res) => {
   }
 });
 
-// New proxy endpoint for file uploads to Monday.com
-app.post('/proxy-upload', upload.single('file'), async (req, res) => {
+// Simple health check endpoint
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok' });
+});
+
+app.post('/proxy-upload', express.raw({ type: 'multipart/form-data', limit: '5mb' }), async (req, res) => {
   try {
+    console.log('Starting file upload process');
     const token = req.headers['authorization'];
     
     if (!token) {
-      console.error('Missing token in headers:', req.headers);
+      console.log('Missing token in request');
       return res.status(400).json({ error: 'Missing token' });
     }
 
-    if (!req.file) {
-      console.error('No file received');
-      return res.status(400).json({ error: 'No file received' });
-    }
+    // Create a readable stream from the request body
+    const readable = new stream.Readable();
+    readable._read = () => {}; // Required but noop
+    readable.push(req.body);
+    readable.push(null);
 
-    console.log('Proxying file upload to Monday.com with token:', token ? 'present' : 'missing');
-    
-    // Create form data for Monday.com upload
-    const form = new FormData();
-    form.append('file', req.file.buffer, {
-      filename: req.file.originalname,
-      contentType: req.file.mimetype
-    });
-
-    // Forward the file upload to Monday.com
+    // Upload directly to Monday.com
+    console.log('Uploading to Monday.com');
     const uploadResponse = await fetch('https://files.monday.com/upload', {
       method: 'POST',
       headers: {
-        'Authorization': token,
-        ...form.getHeaders()
+        'Authorization': token.startsWith('Bearer ') ? token : `Bearer ${token}`,
+        'Content-Type': 'multipart/form-data'
       },
-      body: form
+      body: readable,
+      timeout: 10000 // 10 second timeout
     });
 
-    if (!uploadResponse.ok) {
-      console.error('Upload failed:', {
-        status: uploadResponse.status,
-        statusText: uploadResponse.statusText,
-        headers: uploadResponse.headers.raw()
-      });
-      
-      let errorText;
-      try {
-        errorText = await uploadResponse.text();
-        console.error('Error response body:', errorText);
-      } catch (e) {
-        console.error('Failed to read error response:', e);
-        errorText = 'Unable to read error details';
-      }
+    console.log('Monday.com response status:', uploadResponse.status);
+    const responseText = await uploadResponse.text();
+    console.log('Monday.com response text:', responseText);
 
-      return res.status(uploadResponse.status).json({ 
-        error: 'Failed to upload file to Monday.com',
-        details: errorText,
-        status: uploadResponse.status
+    if (!uploadResponse.ok) {
+      return res.status(uploadResponse.status).json({
+        error: 'Monday.com upload failed',
+        details: responseText
       });
     }
 
-    const result = await uploadResponse.json();
-    console.log('Upload successful:', result);
-    res.json(result);
+    try {
+      const result = JSON.parse(responseText);
+      console.log('Successfully parsed response');
+      res.json(result);
+    } catch (parseError) {
+      console.error('Failed to parse Monday.com response:', parseError);
+      res.status(500).json({
+        error: 'Invalid response from Monday.com',
+        details: responseText
+      });
+    }
   } catch (error) {
-    console.error('Error proxying file upload:', error);
+    console.error('Upload error:', error);
     res.status(500).json({ 
-      error: 'Failed to upload file',
-      details: error.message,
+      error: 'Server error',
+      message: error.message,
       stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
   }
