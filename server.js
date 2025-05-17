@@ -330,6 +330,7 @@ app.post('/proxy-upload', upload.single('file'), async (req, res) => {
     let token;
     try {
       token = getValidToken(req);
+      console.log('Token validation successful');
     } catch (tokenError) {
       console.error('Token error:', tokenError);
       return res.status(401).json({ 
@@ -338,55 +339,90 @@ app.post('/proxy-upload', upload.single('file'), async (req, res) => {
       });
     }
 
-    // Initialize Monday SDK with token
-    const monday = initializeMondaySdk(token);
-
-    // Convert file buffer to base64
-    const base64File = req.file.buffer.toString('base64');
-    
-    // Create the mutation for file upload
-    const mutation = `mutation($file: File!) {
+    // Create form data with proper boundaries
+    const form = new FormData();
+    form.append('query', `mutation($file: File!) {
       add_file_to_column(file: $file) {
         url
         id
       }
-    }`;
-
-    console.log('Uploading to Monday.com with SDK');
-    const result = await monday.api(mutation, {
-      variables: {
-        file: {
-          name: req.file.originalname || 'resized_image.jpg',
-          content: base64File,
-          type: req.file.mimetype || 'image/jpeg'
-        }
-      }
+    }`);
+    
+    // Add the file as a variable
+    form.append('variables', JSON.stringify({
+      file: null
+    }));
+    
+    // Add the file in the map
+    form.append('map', JSON.stringify({
+      "0": ["variables.file"]
+    }));
+    
+    // Add the actual file with index 0
+    form.append('0', req.file.buffer, {
+      filename: req.file.originalname || 'resized_image.jpg',
+      contentType: req.file.mimetype || 'image/jpeg'
     });
 
-    console.log('Monday.com SDK response:', result);
+    // Get the form boundary and headers
+    const formHeaders = form.getHeaders();
 
-    if (result.errors) {
-      console.error('Upload failed:', result.errors);
-      return res.status(400).json({
+    // Upload directly to Monday.com's GraphQL API
+    console.log('Uploading to Monday.com GraphQL API');
+    const uploadResponse = await fetch('https://api.monday.com/v2', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'API-Version': '2024-01',
+        ...formHeaders
+      },
+      body: form
+    });
+
+    console.log('Monday.com response status:', uploadResponse.status);
+    const responseText = await uploadResponse.text();
+    console.log('Monday.com response text:', responseText);
+
+    if (!uploadResponse.ok) {
+      return res.status(uploadResponse.status).json({
         error: 'Monday.com upload failed',
-        details: JSON.stringify(result.errors)
+        details: responseText
       });
     }
 
-    if (!result.data?.add_file_to_column?.url) {
-      console.error('Invalid upload result:', result);
-      return res.status(500).json({
-        error: 'Invalid response from Monday.com',
-        details: 'No file URL in response'
-      });
-    }
+    try {
+      const result = JSON.parse(responseText);
+      console.log('Successfully parsed response:', result);
 
-    res.json({
-      data: {
-        url: result.data.add_file_to_column.url,
-        id: result.data.add_file_to_column.id
+      if (result.errors) {
+        console.error('GraphQL errors:', result.errors);
+        return res.status(400).json({
+          error: 'Monday.com upload failed',
+          details: JSON.stringify(result.errors)
+        });
       }
-    });
+
+      if (!result.data?.add_file_to_column?.url) {
+        console.error('Invalid upload result:', result);
+        return res.status(500).json({
+          error: 'Invalid response from Monday.com',
+          details: 'No file URL in response'
+        });
+      }
+
+      res.json({
+        data: {
+          url: result.data.add_file_to_column.url,
+          id: result.data.add_file_to_column.id
+        }
+      });
+    } catch (parseError) {
+      console.error('Failed to parse Monday.com response:', parseError);
+      res.status(500).json({
+        error: 'Invalid response from Monday.com',
+        details: responseText
+      });
+    }
   } catch (error) {
     console.error('Upload error:', error);
     res.status(500).json({ 

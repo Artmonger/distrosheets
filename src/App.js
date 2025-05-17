@@ -325,14 +325,13 @@ function App() {
         try {
           uploadResult = JSON.parse(responseText);
           console.log('Parsed upload result:', uploadResult);
+
+          if (!uploadResult.data?.url) {
+            throw new Error('Invalid response format from server');
+          }
         } catch (err) {
           console.error('Failed to parse upload response:', err);
           throw new Error(`Invalid response from server: ${responseText}`);
-        }
-
-        if (!uploadResult.data || !uploadResult.data.url) {
-          console.error('Invalid upload result:', uploadResult);
-          throw new Error('Invalid upload response from Monday.com');
         }
 
         // Now create the mutation to link the file
