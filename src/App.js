@@ -109,41 +109,43 @@ function App() {
     // Initialize Monday SDK
     const initMondaySdk = async () => {
       try {
-        // Listen for context changes
+        // First initialize the SDK
+        await monday.execute('init');
+        console.log('Monday SDK initialized');
+
+        // Set up context listener
         monday.listen('context', (res) => {
           if (res.data) {
-            console.log('Context changed:', res.data);
+            console.log('Context updated:', res.data);
             setContext(res.data);
             if (res.data.boardId && res.data.itemId) {
-              fetchItemData(res.data.itemId, res.data.boardId);
+              fetchItemData(res.data.boardId, res.data.itemId);
             }
           }
         });
 
         // Get initial context
         const contextRes = await monday.get('context');
-        if (!contextRes.data) {
-          throw new Error('No context data received');
-        }
-        console.log('Initial context data:', contextRes.data);
-        setContext(contextRes.data);
-
-        // If we have both boardId and itemId, fetch the item data
-        if (contextRes.data.boardId && contextRes.data.itemId) {
-          await fetchItemData(contextRes.data.itemId, contextRes.data.boardId);
+        console.log('Initial context:', contextRes);
+        
+        if (contextRes.data) {
+          setContext(contextRes.data);
+          if (contextRes.data.boardId && contextRes.data.itemId) {
+            await fetchItemData(contextRes.data.boardId, contextRes.data.itemId);
+          }
         }
 
         setLoading(false);
       } catch (err) {
         console.error("Initialization error:", err);
-        setError('Failed to initialize: ' + err.message);
+        setError(err.message);
         setLoading(false);
       }
     };
 
     initMondaySdk();
 
-    // Cleanup listener on unmount
+    // Cleanup
     return () => {
       monday.removeEventListener('context');
     };
@@ -158,80 +160,79 @@ function App() {
     return callback();
   };
 
-  const fetchItemData = async (itemId, boardId) => {
-    return ensureSdkReady(async () => {
-      try {
-        setStatus('Fetching board data...');
-        // Get the board columns
-        const columnsQuery = `query {
-          boards (ids: ${boardId}) {
-            columns {
+  const fetchItemData = async (boardId, itemId) => {
+    if (!boardId || !itemId) {
+      console.log('Missing boardId or itemId:', { boardId, itemId });
+      return;
+    }
+
+    try {
+      setStatus('Fetching board data...');
+      // Get the board columns
+      const columnsQuery = `query {
+        boards (ids: ${boardId}) {
+          columns {
+            id
+            title
+            type
+            settings_str
+          }
+        }
+      }`;
+
+      const columnsResponse = await monday.api(columnsQuery);
+      console.log("Board columns response:", columnsResponse);
+
+      if (!columnsResponse.data?.boards?.[0]) {
+        throw new Error('Failed to fetch board columns');
+      }
+
+      // Get the item data
+      const itemQuery = `query {
+        items (ids: ${itemId}) {
+          id
+          name
+          column_values {
+            id
+            column {
               id
               title
               type
-              settings_str
             }
+            value
+            text
           }
-        }`;
-
-        const columnsResponse = await monday.api(columnsQuery);
-        console.log("All board columns:", columnsResponse.data?.boards?.[0]?.columns);
-
-        if (!columnsResponse.data?.boards?.[0]) {
-          throw new Error('Failed to fetch board columns');
         }
+      }`;
 
-        setStatus('Fetching item data...');
-        // Get the item data
-        const itemQuery = `query {
-          items (ids: ${itemId}) {
-            id
-            name
-            column_values {
-              id
-              column {
-                id
-                title
-                type
-              }
-              value
-              text
-            }
-          }
-        }`;
+      const itemResponse = await monday.api(itemQuery);
+      console.log("Item data response:", itemResponse);
 
-        const itemResponse = await monday.api(itemQuery);
-        console.log("Item column values:", itemResponse.data?.items?.[0]?.column_values);
-
-        if (!itemResponse.data?.items?.[0]) {
-          throw new Error('Failed to fetch item data');
-        }
-
-        // Find the file columns
-        const columns = columnsResponse.data.boards[0].columns;
-        const fileColumns = columns.filter(col => col.type === 'file');
-        
-        console.log('File columns:', fileColumns);
-
-        if (fileColumns.length < 2) {
-          throw new Error('Please add two file columns to your board - one for original images and one for resized images.');
-        }
-
-        setItemData({
-          item: itemResponse.data.items[0],
-          columns: columnsResponse.data.boards[0].columns,
-          sourceFileColumnId: fileColumns[0]?.id,
-          targetFileColumnId: fileColumns[1]?.id
-        });
-
-        setStatus('Ready to resize images');
-        setError(null);
-      } catch (err) {
-        console.error("Error fetching data:", err);
-        setError(err.message);
-        throw err;
+      if (!itemResponse.data?.items?.[0]) {
+        throw new Error('Failed to fetch item data');
       }
-    });
+
+      // Find the file columns
+      const columns = columnsResponse.data.boards[0].columns;
+      const fileColumns = columns.filter(col => col.type === 'file');
+      
+      if (fileColumns.length < 2) {
+        throw new Error('Please add two file columns to your board - one for original images and one for resized images.');
+      }
+
+      setItemData({
+        item: itemResponse.data.items[0],
+        columns: columns,
+        sourceFileColumnId: fileColumns[0]?.id,
+        targetFileColumnId: fileColumns[1]?.id
+      });
+
+      setStatus('Ready to resize images');
+      setError(null);
+    } catch (err) {
+      console.error("Error fetching data:", err);
+      setError(err.message);
+    }
   };
 
   const handleImageResize = async () => {
@@ -398,7 +399,7 @@ function App() {
           if (linkResult.data?.change_column_value?.id) {
             console.log('Successfully uploaded and linked resized image');
             setStatus('Successfully resized and uploaded image!');
-            await fetchItemData(context.itemId, context.boardId);
+            await fetchItemData(context.boardId, context.itemId);
             setError(null);
           } else {
             throw new Error('Failed to link file to column: ' + JSON.stringify(linkResult.errors || linkResult));
@@ -452,7 +453,7 @@ function App() {
       console.log("Transfer response:", transferResponse);
 
       if (transferResponse.data?.change_column_value?.id) {
-        await fetchItemData(context.itemId, context.boardId);
+        await fetchItemData(context.boardId, context.itemId);
         setError(null);
       } else {
         throw new Error('Failed to copy file - no confirmation received');
