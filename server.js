@@ -303,7 +303,7 @@ app.post('/proxy-upload', upload.single('file'), async (req, res) => {
       return res.status(400).json({ error: 'Missing token' });
     }
 
-    // Remove Bearer prefix if present
+    // Remove Bearer prefix if present, then add it back in the correct format
     token = token.replace('Bearer ', '');
 
     // Initialize Monday SDK with token
@@ -324,7 +324,7 @@ app.post('/proxy-upload', upload.single('file'), async (req, res) => {
     const uploadResponse = await fetch('https://api.monday.com/v2/file', {
       method: 'POST',
       headers: {
-        'Authorization': token,  // Send token without Bearer prefix
+        'Authorization': `Bearer ${token}`,  // Add Bearer prefix for Monday.com API
         ...formHeaders  // This includes the correct Content-Type with boundary
       },
       body: form

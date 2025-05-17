@@ -306,7 +306,7 @@ function App() {
         const uploadResponse = await fetch('/proxy-upload', {
           method: 'POST',
           headers: {
-            'Authorization': token  // Send token as-is, server will handle Bearer prefix
+            'Authorization': `Bearer ${token}`  // Add Bearer prefix
           },
           // Don't set Content-Type - browser will set it with correct boundary
           body: formData
