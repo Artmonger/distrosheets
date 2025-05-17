@@ -86,32 +86,40 @@ async function downloadFileFromMonday(fileUrl, token) {
     const result = await mondaySdk.api(query);
     console.log('API response:', JSON.stringify(result, null, 2));
 
-    if (!result.data?.assets?.[0]?.url) {
+    if (!result.data?.assets?.[0]?.url && !result.data?.assets?.[0]?.public_url) {
       console.error('API response missing URL:', result);
       throw new Error('Failed to get URL from Monday.com API');
     }
 
-    const downloadUrl = result.data.assets[0].url;
+    // Try public_url first, then fall back to url
+    const downloadUrl = result.data.assets[0].public_url || result.data.assets[0].url;
     console.log('Got download URL:', downloadUrl);
 
-    // Try downloading with the URL
-    console.log('Attempting download...');
+    // Try downloading with the URL and token in Authorization header
+    console.log('Attempting download with token in Authorization header...');
     const response = await fetch(downloadUrl, {
       headers: {
         'Authorization': `Bearer ${token}`,
-        'Accept': '*/*'
+        'Accept': '*/*',
+        'monday-api-token': token
       }
     });
+
+    if (!response.ok) {
+      // If first attempt fails, try without Authorization header
+      console.log('First download attempt failed, trying without Authorization header...');
+      const retryResponse = await fetch(downloadUrl);
+      if (!retryResponse.ok) {
+        throw new Error(`Failed to download file: ${retryResponse.status} ${retryResponse.statusText}`);
+      }
+      response = retryResponse;
+    }
 
     console.log('Download response:', {
       status: response.status,
       statusText: response.statusText,
       headers: Object.fromEntries(response.headers.entries())
     });
-
-    if (!response.ok) {
-      throw new Error(`Failed to download file: ${response.status} ${response.statusText}`);
-    }
 
     // Get content type, with fallback to extension-based inference
     let contentType = response.headers.get('content-type');
