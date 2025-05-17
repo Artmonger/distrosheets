@@ -16,7 +16,8 @@ app.use(cors({
     'http://localhost:3001',
     'https://artmonger.monday.com',
     'https://*.monday.com',
-    'https://monday.com'
+    'https://monday.com',
+    'https://*.s3.amazonaws.com'
   ],
   credentials: true,
   methods: ['GET', 'POST', 'OPTIONS'],
@@ -66,49 +67,9 @@ async function downloadFileFromMonday(fileUrl, token) {
   console.log('Token available:', !!token);
   
   try {
-    // Extract asset ID from URL first
-    const assetIdMatch = fileUrl.match(/resources\/(\d+)/);
-    if (!assetIdMatch) {
-      throw new Error('Could not extract asset ID from URL');
-    }
-    const assetId = assetIdMatch[1];
-    console.log('Extracted asset ID:', assetId);
-    
-    // Initialize Monday SDK with token
-    mondaySdk.setToken(token);
-    
-    // Get signed URL through the API first
-    const query = `query {
-      assets(ids: [${assetId}]) {
-        url
-        public_url
-        name
-        id
-      }
-    }`;
-
-    console.log('Querying Monday.com API for URL...');
-    const result = await mondaySdk.api(query);
-    console.log('API response:', JSON.stringify(result, null, 2));
-
-    if (!result.data?.assets?.[0]) {
-      console.error('API response missing asset:', result);
-      throw new Error('Asset not found in Monday.com API response');
-    }
-
-    const asset = result.data.assets[0];
-    if (!asset.url && !asset.public_url) {
-      console.error('API response missing URLs:', asset);
-      throw new Error('No download URL available for asset');
-    }
-
-    // Try public_url first, then fall back to url
-    const downloadUrl = asset.public_url || asset.url;
-    console.log('Got download URL:', downloadUrl);
-
-    // Try downloading with the URL and token in Authorization header
-    console.log('Attempting download with token in Authorization header...');
-    let response = await fetch(downloadUrl, {
+    // First try to download directly from the provided URL
+    console.log('Attempting direct download...');
+    let response = await fetch(fileUrl, {
       headers: {
         'Authorization': `Bearer ${token}`,
         'monday-api-token': token,
@@ -116,33 +77,30 @@ async function downloadFileFromMonday(fileUrl, token) {
       }
     });
 
+    // If direct download fails, try without auth headers
     if (!response.ok) {
-      // If first attempt fails, try without Authorization header
-      console.log('First download attempt failed, trying without Authorization header...');
-      response = await fetch(downloadUrl);
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Download failed:', {
-          status: response.status,
-          statusText: response.statusText,
-          body: errorText
-        });
-        throw new Error(`Failed to download file: ${response.status} ${response.statusText}`);
-      }
+      console.log('Direct download failed, trying without auth headers...');
+      response = await fetch(fileUrl);
+    }
+
+    if (!response.ok) {
+      console.error('Download failed:', {
+        status: response.status,
+        statusText: response.statusText
+      });
+      throw new Error(`Failed to download file: ${response.status} ${response.statusText}`);
     }
 
     console.log('Download successful:', {
       status: response.status,
       statusText: response.statusText,
-      headers: Object.fromEntries(response.headers.entries())
+      contentType: response.headers.get('content-type')
     });
 
     // Get content type, with fallback to extension-based inference
     let contentType = response.headers.get('content-type');
     if (!contentType || contentType === 'application/octet-stream') {
-      const fileExtension = asset.name?.split('.').pop().toLowerCase() || 
-                          downloadUrl.split('.').pop().toLowerCase();
+      const fileExtension = fileUrl.split('.').pop().toLowerCase();
       const mimeTypes = {
         'jpg': 'image/jpeg',
         'jpeg': 'image/jpeg',
