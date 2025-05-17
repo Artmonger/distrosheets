@@ -97,7 +97,7 @@ async function downloadFileFromMonday(fileUrl, token) {
 
     // Try downloading with the URL and token in Authorization header
     console.log('Attempting download with token in Authorization header...');
-    const response = await fetch(downloadUrl, {
+    let response = await fetch(downloadUrl, {
       headers: {
         'Authorization': `Bearer ${token}`,
         'Accept': '*/*',
@@ -108,11 +108,10 @@ async function downloadFileFromMonday(fileUrl, token) {
     if (!response.ok) {
       // If first attempt fails, try without Authorization header
       console.log('First download attempt failed, trying without Authorization header...');
-      const retryResponse = await fetch(downloadUrl);
-      if (!retryResponse.ok) {
-        throw new Error(`Failed to download file: ${retryResponse.status} ${retryResponse.statusText}`);
+      response = await fetch(downloadUrl);
+      if (!response.ok) {
+        throw new Error(`Failed to download file: ${response.status} ${response.statusText}`);
       }
-      response = retryResponse;
     }
 
     console.log('Download response:', {
@@ -158,7 +157,7 @@ async function downloadFileFromMonday(fileUrl, token) {
 app.post('/resize-image', async (req, res) => {
   try {
     console.log('Received resize request');
-    const { fileUrl, width, token } = req.body;
+    const { fileUrl, width, token, assetId } = req.body;
     
     if (!fileUrl || !width || !token) {
       console.error('Missing parameters:', { fileUrl: !!fileUrl, width: !!width, token: !!token });

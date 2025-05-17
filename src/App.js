@@ -175,6 +175,7 @@ function App() {
       // Get the session token for authentication
       const tokenResponse = await monday.get('sessionToken');
       const token = tokenResponse.data;
+      console.log('Got session token:', token ? 'yes' : 'no');
       
       if (!token) {
         throw new Error('No session token available');
@@ -220,16 +221,19 @@ function App() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
           fileUrl,
-          width: 800, // Desired width in pixels
-          token
+          width: 800,
+          token,
+          assetId: file.assetId
         })
       });
 
       if (!resizeResponse.ok) {
         const errorData = await resizeResponse.json();
+        console.error('Resize error response:', errorData);
         throw new Error(`Failed to resize image: ${JSON.stringify(errorData)}`);
       }
 
@@ -265,7 +269,7 @@ function App() {
       const uploadResponse = await fetch('https://api.monday.com/v2/file', {
         method: 'POST',
         headers: {
-          'Authorization': await monday.get('sessionToken').then(res => res.data)
+          'Authorization': token
         },
         body: formData
       });
