@@ -285,18 +285,21 @@ function App() {
       setStatus('Uploading resized image...');
       console.log('Starting upload via Monday SDK');
 
-      const formData = new FormData();
-      formData.append('query', `mutation($file: File!) {
+      // Create a new mutation for file upload
+      const uploadMutation = `mutation($file: File!) {
         add_file_to_column(file: $file) {
           url
           id
         }
-      }`);
-      formData.append('variables', JSON.stringify({ file: null }));
-      formData.append('map', JSON.stringify({ "0": ["variables.file"] }));
-      formData.append('0', fileToUpload);
+      }`;
 
-      const uploadResponse = await monday.api(formData);
+      // Use the SDK's built-in file upload method
+      const uploadResponse = await monday.api(uploadMutation, {
+        variables: {
+          file: fileToUpload
+        }
+      });
+
       console.log('Upload response:', uploadResponse);
 
       if (uploadResponse.errors) {
