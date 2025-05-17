@@ -328,7 +328,7 @@ function App() {
           throw new Error(`Invalid response from server: ${responseText}`);
         }
 
-        if (!uploadResult.data || !uploadResult.data.id) {
+        if (!uploadResult.data || !uploadResult.data.url) {
           console.error('Invalid upload result:', uploadResult);
           throw new Error('Invalid upload response from Monday.com');
         }
@@ -341,7 +341,7 @@ function App() {
             column_id: "${itemData.targetFileColumnId}", 
             value: ${JSON.stringify(JSON.stringify({
               files: [{
-                assetId: uploadResult.data.id,
+                url: uploadResult.data.url,
                 name: fileToUpload.name
               }]
             }))}

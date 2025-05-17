@@ -23,12 +23,11 @@ const initializeMondaySdk = (token) => {
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// Configure multer with strict limits
+// Configure multer for memory storage
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: {
-    fileSize: 5 * 1024 * 1024, // 5MB limit
-    files: 1
+    fileSize: 5 * 1024 * 1024 // 5MB limit
   }
 });
 
@@ -311,9 +310,9 @@ app.post('/proxy-upload', upload.single('file'), async (req, res) => {
       contentType: req.file.mimetype || 'image/jpeg'
     });
 
-    // Upload to Monday.com
+    // Upload directly to Monday.com's API
     console.log('Uploading to Monday.com');
-    const uploadResponse = await fetch('https://files.monday.com/upload', {
+    const uploadResponse = await fetch('https://api.monday.com/v2/file', {
       method: 'POST',
       headers: {
         'Authorization': token.startsWith('Bearer ') ? token : `Bearer ${token}`
