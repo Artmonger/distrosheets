@@ -272,8 +272,13 @@ app.post('/resize-image', async (req, res) => {
 // New proxy endpoint for file uploads to Monday.com
 app.post('/proxy-upload', async (req, res) => {
   try {
-    const { token } = req.headers;
+    // Check for token in various header formats
+    const token = req.headers['monday-api-token'] || 
+                 req.headers['authorization']?.replace('Bearer ', '') || 
+                 req.headers['Authorization']?.replace('Bearer ', '');
+
     if (!token) {
+      console.error('Missing token in headers:', req.headers);
       return res.status(400).json({ error: 'Missing token' });
     }
 
@@ -283,13 +288,17 @@ app.post('/proxy-upload', async (req, res) => {
     const uploadResponse = await fetch('https://files.monday.com/upload', {
       method: 'POST',
       headers: {
-        'Authorization': token
+        'Authorization': token,
+        'monday-api-token': token
       },
       body: req.body
     });
 
     if (!uploadResponse.ok) {
-      console.error('Upload failed:', uploadResponse.status, uploadResponse.statusText);
+      console.error('Upload failed:', {
+        status: uploadResponse.status,
+        statusText: uploadResponse.statusText
+      });
       const errorText = await uploadResponse.text();
       return res.status(uploadResponse.status).json({ 
         error: 'Failed to upload file to Monday.com',

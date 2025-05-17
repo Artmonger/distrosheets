@@ -272,7 +272,8 @@ function App() {
       const uploadResponse = await fetch('/proxy-upload', {
         method: 'POST',
         headers: {
-          'Authorization': token
+          'monday-api-token': token,
+          'Authorization': `Bearer ${token}`
         },
         body: formData
       });
