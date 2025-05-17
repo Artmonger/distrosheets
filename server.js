@@ -310,12 +310,13 @@ app.post('/proxy-upload', upload.single('file'), async (req, res) => {
       contentType: req.file.mimetype || 'image/jpeg'
     });
 
-    // Upload directly to Monday.com's API
+    // Upload directly to Monday.com's API with GraphQL mutation
     console.log('Uploading to Monday.com');
     const uploadResponse = await fetch('https://api.monday.com/v2/file', {
       method: 'POST',
       headers: {
-        'Authorization': token.startsWith('Bearer ') ? token : `Bearer ${token}`
+        'Authorization': token,
+        'Content-Type': 'multipart/form-data'
       },
       body: form
     });
