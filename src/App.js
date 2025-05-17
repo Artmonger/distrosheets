@@ -31,25 +31,37 @@ const getFileUrl = async (mondayInstance, assetId, fileName) => {
       assets(ids: [${assetId}]) {
         url
         public_url
+        name
+        id
       }
     }`;
 
-    console.log('Querying for asset URL:', query);
+    console.log('Querying for asset URL:', { assetId, fileName });
     const response = await mondayInstance.api(query);
-    console.log('Asset URL response:', response);
+    console.log('Asset URL response:', JSON.stringify(response, null, 2));
 
-    if (!response.data?.assets?.[0]?.url) {
-      throw new Error('Failed to get asset URL from Monday.com API');
+    if (!response.data?.assets?.length) {
+      throw new Error('No asset found with ID: ' + assetId);
     }
 
-    // Use the direct URL from the API response
-    const fileUrl = response.data.assets[0].url;
-    console.log('Got direct file URL:', fileUrl);
-    return fileUrl;
+    const asset = response.data.assets[0];
+    if (!asset.url && !asset.public_url) {
+      throw new Error('No URL available for asset: ' + assetId);
+    }
+
+    // Prefer public_url if available, fall back to url
+    const fileUrl = asset.public_url || asset.url;
+    console.log('Selected URL for download:', fileUrl);
+    
+    // Return both URL and token for later use
+    return {
+      url: fileUrl,
+      token: token
+    };
 
   } catch (err) {
     console.error('Error getting file URL:', err);
-    throw err;
+    throw new Error(`Failed to get file URL: ${err.message}`);
   }
 };
 
@@ -206,29 +218,42 @@ function App() {
       // Get the file URL
       setStatus('Getting file URL...');
       console.log('Getting file URL for asset:', file.assetId);
-      const fileUrl = await getFileUrl(monday, file.assetId, file.name);
+      const { url, token: fileToken } = await getFileUrl(monday, file.assetId, file.name);
       
-      if (!fileUrl) {
+      if (!url) {
         throw new Error('Failed to get file URL');
       }
       
-      console.log('Got file URL:', fileUrl);
+      console.log('Got file URL:', url);
       
+      // Download the image file directly in the frontend
+      setStatus('Downloading image...');
+      console.log('Downloading image from URL:', url);
+      const imageResponse = await fetch(url, {
+        headers: {
+          'Authorization': `Bearer ${fileToken}`,
+          'monday-api-token': fileToken
+        }
+      });
+
+      if (!imageResponse.ok) {
+        throw new Error(`Failed to download image: ${imageResponse.status} ${imageResponse.statusText}`);
+      }
+
+      const imageBlob = await imageResponse.blob();
+      console.log('Downloaded image blob:', imageBlob.size, 'bytes');
+
+      // Create FormData with the image blob
+      const formData = new FormData();
+      formData.append('image', imageBlob, file.name);
+      formData.append('width', '800');
+
       // Call our server endpoint to resize the image
       setStatus('Resizing image...');
       console.log('Sending resize request to server');
       const resizeResponse = await fetch('/resize-image', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          fileUrl,
-          width: 800,
-          token,
-          assetId: file.assetId
-        })
+        body: formData
       });
 
       if (!resizeResponse.ok) {
@@ -250,8 +275,8 @@ function App() {
 
       // Create form data for the upload
       setStatus('Uploading resized image...');
-      const formData = new FormData();
-      formData.append('query', `mutation($file: File!) {
+      const uploadFormData = new FormData();
+      uploadFormData.append('query', `mutation($file: File!) {
         add_file_to_column(
           item_id: ${context.itemId},
           column_id: "${itemData.targetFileColumnId}",
@@ -260,18 +285,18 @@ function App() {
           id
         }
       }`);
-      formData.append('variables', JSON.stringify({ file: null }));
-      formData.append('map', JSON.stringify({ "0": ["variables.file"] }));
-      formData.append('0', resizedFile);
+      uploadFormData.append('variables', JSON.stringify({ file: null }));
+      uploadFormData.append('map', JSON.stringify({ "0": ["variables.file"] }));
+      uploadFormData.append('0', resizedFile);
 
       // Upload the resized image
       console.log('Uploading resized file to Monday.com');
       const uploadResponse = await fetch('https://api.monday.com/v2/file', {
         method: 'POST',
         headers: {
-          'Authorization': token
+          'Authorization': fileToken
         },
-        body: formData
+        body: uploadFormData
       });
 
       const uploadResult = await uploadResponse.json();

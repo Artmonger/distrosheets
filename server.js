@@ -79,6 +79,8 @@ async function downloadFileFromMonday(fileUrl, token) {
       assets(ids: [${assetId}]) {
         url
         public_url
+        name
+        id
       }
     }`;
 
@@ -86,13 +88,19 @@ async function downloadFileFromMonday(fileUrl, token) {
     const result = await mondaySdk.api(query);
     console.log('API response:', JSON.stringify(result, null, 2));
 
-    if (!result.data?.assets?.[0]?.url && !result.data?.assets?.[0]?.public_url) {
-      console.error('API response missing URL:', result);
-      throw new Error('Failed to get URL from Monday.com API');
+    if (!result.data?.assets?.[0]) {
+      console.error('API response missing asset:', result);
+      throw new Error('Asset not found in Monday.com API response');
+    }
+
+    const asset = result.data.assets[0];
+    if (!asset.url && !asset.public_url) {
+      console.error('API response missing URLs:', asset);
+      throw new Error('No download URL available for asset');
     }
 
     // Try public_url first, then fall back to url
-    const downloadUrl = result.data.assets[0].public_url || result.data.assets[0].url;
+    const downloadUrl = asset.public_url || asset.url;
     console.log('Got download URL:', downloadUrl);
 
     // Try downloading with the URL and token in Authorization header
@@ -100,8 +108,8 @@ async function downloadFileFromMonday(fileUrl, token) {
     let response = await fetch(downloadUrl, {
       headers: {
         'Authorization': `Bearer ${token}`,
-        'Accept': '*/*',
-        'monday-api-token': token
+        'monday-api-token': token,
+        'Accept': '*/*'
       }
     });
 
@@ -109,12 +117,19 @@ async function downloadFileFromMonday(fileUrl, token) {
       // If first attempt fails, try without Authorization header
       console.log('First download attempt failed, trying without Authorization header...');
       response = await fetch(downloadUrl);
+      
       if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Download failed:', {
+          status: response.status,
+          statusText: response.statusText,
+          body: errorText
+        });
         throw new Error(`Failed to download file: ${response.status} ${response.statusText}`);
       }
     }
 
-    console.log('Download response:', {
+    console.log('Download successful:', {
       status: response.status,
       statusText: response.statusText,
       headers: Object.fromEntries(response.headers.entries())
@@ -123,7 +138,8 @@ async function downloadFileFromMonday(fileUrl, token) {
     // Get content type, with fallback to extension-based inference
     let contentType = response.headers.get('content-type');
     if (!contentType || contentType === 'application/octet-stream') {
-      const fileExtension = fileUrl.split('.').pop().toLowerCase();
+      const fileExtension = asset.name?.split('.').pop().toLowerCase() || 
+                          downloadUrl.split('.').pop().toLowerCase();
       const mimeTypes = {
         'jpg': 'image/jpeg',
         'jpeg': 'image/jpeg',
@@ -141,6 +157,10 @@ async function downloadFileFromMonday(fileUrl, token) {
 
     // Create a new response with the proper content type
     const buffer = await response.arrayBuffer();
+    if (buffer.byteLength === 0) {
+      throw new Error('Downloaded file is empty');
+    }
+
     return new Response(buffer, {
       headers: {
         'content-type': contentType || 'application/octet-stream'
@@ -159,23 +179,63 @@ app.post('/resize-image', async (req, res) => {
     console.log('Received resize request');
     const { fileUrl, width, token, assetId } = req.body;
     
+    // Validate required parameters
     if (!fileUrl || !width || !token) {
-      console.error('Missing parameters:', { fileUrl: !!fileUrl, width: !!width, token: !!token });
-      return res.status(400).json({ error: 'Missing required parameters' });
+      console.error('Missing parameters:', { 
+        hasFileUrl: !!fileUrl, 
+        hasWidth: !!width, 
+        hasToken: !!token 
+      });
+      return res.status(400).json({ 
+        error: 'Missing required parameters',
+        details: {
+          fileUrl: !fileUrl ? 'Missing file URL' : null,
+          width: !width ? 'Missing width' : null,
+          token: !token ? 'Missing token' : null
+        }
+      });
+    }
+
+    // Validate width is a reasonable number
+    const parsedWidth = parseInt(width);
+    if (isNaN(parsedWidth) || parsedWidth < 1 || parsedWidth > 5000) {
+      return res.status(400).json({ 
+        error: 'Invalid width parameter',
+        details: 'Width must be a number between 1 and 5000'
+      });
     }
 
     console.log('Downloading image from:', fileUrl);
     
     // Download the image using our helper function
-    const response = await downloadFileFromMonday(fileUrl, token);
+    let response;
+    try {
+      response = await downloadFileFromMonday(fileUrl, token);
+    } catch (downloadError) {
+      console.error('Error downloading file:', downloadError);
+      return res.status(502).json({ 
+        error: 'Failed to download image from Monday.com',
+        details: downloadError.message
+      });
+    }
+
     const contentType = response.headers.get('content-type');
     console.log('Downloaded file content type:', contentType);
     
-    const buffer = await response.arrayBuffer();
-    console.log('Downloaded image, size:', buffer.length, 'bytes');
+    let buffer;
+    try {
+      buffer = await response.arrayBuffer();
+      console.log('Downloaded image, size:', buffer.length, 'bytes');
 
-    if (buffer.length === 0) {
-      throw new Error('Downloaded file is empty');
+      if (buffer.length === 0) {
+        throw new Error('Downloaded file is empty');
+      }
+    } catch (bufferError) {
+      console.error('Error reading file buffer:', bufferError);
+      return res.status(502).json({ 
+        error: 'Failed to read image data',
+        details: bufferError.message
+      });
     }
 
     // Log first few bytes of buffer to check format
@@ -192,25 +252,37 @@ app.post('/resize-image', async (req, res) => {
       }
     } catch (err) {
       console.error('Error reading image metadata:', err);
-      throw new Error('Invalid image file: ' + err.message);
+      return res.status(400).json({ 
+        error: 'Invalid image file',
+        details: err.message
+      });
     }
 
     // Resize the image
-    console.log('Resizing image to width:', width);
-    const resizedBuffer = await sharp(Buffer.from(buffer), {
-      failOnError: true
-    })
-    .resize(parseInt(width), null, { 
-      fit: 'contain',
-      withoutEnlargement: true
-    })
-    .toFormat(metadata.format, {
-      quality: 85,
-      chromaSubsampling: '4:4:4'
-    })
-    .toBuffer();
+    console.log('Resizing image to width:', parsedWidth);
+    let resizedBuffer;
+    try {
+      resizedBuffer = await sharp(Buffer.from(buffer), {
+        failOnError: true
+      })
+      .resize(parsedWidth, null, { 
+        fit: 'contain',
+        withoutEnlargement: true
+      })
+      .toFormat(metadata.format, {
+        quality: 85,
+        chromaSubsampling: '4:4:4'
+      })
+      .toBuffer();
 
-    console.log('Resized image, new size:', resizedBuffer.length, 'bytes');
+      console.log('Resized image, new size:', resizedBuffer.length, 'bytes');
+    } catch (resizeError) {
+      console.error('Error resizing image:', resizeError);
+      return res.status(500).json({ 
+        error: 'Failed to resize image',
+        details: resizeError.message
+      });
+    }
 
     // Send the resized image back
     res.set('Content-Type', contentType || `image/${metadata.format}`);
@@ -218,9 +290,9 @@ app.post('/resize-image', async (req, res) => {
     res.send(resizedBuffer);
     console.log('Successfully sent resized image');
   } catch (error) {
-    console.error('Error resizing image:', error);
+    console.error('Error processing image:', error);
     res.status(500).json({ 
-      error: 'Failed to resize image',
+      error: 'Failed to process image',
       details: error.message,
       stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
