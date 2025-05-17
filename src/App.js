@@ -26,18 +26,19 @@ const getFileUrl = async (mondayInstance, assetId, fileName) => {
       throw new Error('No session token available');
     }
 
-    // For Monday.com files, we can construct the URL directly
-    // The URL format is: https://[account].monday.com/protected_static/[account_id]/resources/[asset_id]/[filename]
+    // Get the context
     const context = await mondayInstance.get('context');
-    const accountUrl = context.data?.account?.url;
-    const accountId = context.data?.account?.id;
+    console.log('Full context for URL construction:', context.data);
     
-    if (!accountUrl || !accountId) {
-      throw new Error('Missing account information');
+    // Extract account information
+    const accountSubdomain = context.data?.account?.slug || context.data?.account?.name?.toLowerCase().replace(/[^a-z0-9]/g, '');
+    
+    if (!accountSubdomain) {
+      throw new Error('Missing account subdomain');
     }
 
-    // Construct the file URL
-    const fileUrl = `https://${accountUrl}/protected_static/${accountId}/resources/${assetId}/${encodeURIComponent(fileName)}`;
+    // Construct the file URL using the account subdomain
+    const fileUrl = `https://${accountSubdomain}.monday.com/protected_static/${assetId}/${encodeURIComponent(fileName)}`;
     console.log('Constructed file URL:', fileUrl);
     return fileUrl;
   } catch (err) {
@@ -165,6 +166,14 @@ function App() {
       setStatus('Starting image resize process...');
       console.log('Current item data:', itemData);
       
+      // Get the session token for authentication
+      const tokenResponse = await monday.get('sessionToken');
+      const token = tokenResponse.data;
+      
+      if (!token) {
+        throw new Error('No session token available');
+      }
+      
       // Find the source file column using the stored ID
       const sourceColumn = itemData.item.column_values.find(cv => cv.column.id === itemData.sourceFileColumnId);
       console.log('Source column:', sourceColumn);
@@ -208,7 +217,8 @@ function App() {
         },
         body: JSON.stringify({
           fileUrl,
-          width: 800 // Desired width in pixels
+          width: 800, // Desired width in pixels
+          token
         })
       });
 

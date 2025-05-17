@@ -31,7 +31,7 @@ app.use(express.static(path.join(__dirname, 'build')));
 app.post('/resize-image', async (req, res) => {
   try {
     console.log('Received resize request');
-    const { fileUrl, width } = req.body;
+    const { fileUrl, width, token } = req.body;
     
     if (!fileUrl || !width) {
       console.error('Missing parameters:', { fileUrl: !!fileUrl, width: !!width });
@@ -44,7 +44,8 @@ app.post('/resize-image', async (req, res) => {
     const response = await fetch(fileUrl, {
       headers: {
         'Accept': 'image/*',
-        'Cache-Control': 'no-cache'
+        'Cache-Control': 'no-cache',
+        'Authorization': token
       }
     });
 
