@@ -27,6 +27,61 @@ app.use(express.json({ limit: '50mb' }));
 // Serve static files from the React app
 app.use(express.static(path.join(__dirname, 'build')));
 
+// Helper function to get file from Monday.com
+async function downloadFileFromMonday(fileUrl, token) {
+  // Initialize Monday SDK with token
+  mondaySdk.setToken(token);
+  
+  // First try to download directly with token
+  try {
+    const response = await fetch(fileUrl, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Accept': 'image/*',
+        'monday-api-token': token
+      },
+      redirect: 'follow'
+    });
+
+    if (response.ok) {
+      return response;
+    }
+
+    console.log('Direct download failed, trying through Monday.com API');
+    
+    // If direct download fails, try to get a signed URL through the API
+    const query = `query {
+      assets(ids: [${fileUrl.match(/resources\/(\d+)/)[1]}]) {
+        url
+        public_url
+      }
+    }`;
+
+    const result = await mondaySdk.api(query);
+    console.log('API response:', result);
+
+    if (!result.data?.assets?.[0]?.url) {
+      throw new Error('Failed to get signed URL from Monday.com API');
+    }
+
+    // Try downloading with the signed URL
+    const signedResponse = await fetch(result.data.assets[0].url, {
+      headers: {
+        'Accept': 'image/*'
+      }
+    });
+
+    if (!signedResponse.ok) {
+      throw new Error(`Failed to download with signed URL: ${signedResponse.status} ${signedResponse.statusText}`);
+    }
+
+    return signedResponse;
+  } catch (error) {
+    console.error('Error downloading file:', error);
+    throw error;
+  }
+}
+
 // Endpoint to resize images
 app.post('/resize-image', async (req, res) => {
   try {
@@ -40,29 +95,9 @@ app.post('/resize-image', async (req, res) => {
 
     console.log('Downloading image from:', fileUrl);
     
-    // Download the image with proper headers for Monday.com's protected files
-    const response = await fetch(fileUrl, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Accept': '*/*',
-        'Cache-Control': 'no-cache',
-        'monday-api-token': token
-      },
-      redirect: 'follow',
-      follow: 5
-    });
-
-    if (!response.ok) {
-      console.error('Download failed:', {
-        status: response.status,
-        statusText: response.statusText,
-        headers: Object.fromEntries(response.headers.entries()),
-        url: response.url
-      });
-      throw new Error(`Failed to download image: ${response.status} ${response.statusText}`);
-    }
-
+    // Download the image using our helper function
+    const response = await downloadFileFromMonday(fileUrl, token);
+    
     const contentType = response.headers.get('content-type');
     console.log('Response content type:', contentType);
 
