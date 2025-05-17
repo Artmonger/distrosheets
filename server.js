@@ -11,13 +11,16 @@ const PORT = process.env.PORT || 3001;
 // CORS configuration
 app.use(cors({
   origin: [
-    'https://monday-img-app.herokuapp.com',
+    'https://monday-img-app-aaca18d8516b.herokuapp.com',
     'http://localhost:3000',
     'http://localhost:3001',
     'https://artmonger.monday.com',
-    'https://*.monday.com'
+    'https://*.monday.com',
+    'https://monday.com'
   ],
   credentials: true,
+  methods: ['GET', 'POST', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'monday-api-token', 'Accept'],
   exposedHeaders: ['Content-Type', 'Authorization', 'Content-Length', 'Cache-Control']
 }));
 

@@ -218,7 +218,7 @@ function App() {
       // Get the file URL
       setStatus('Getting file URL...');
       console.log('Getting file URL for asset:', file.assetId);
-      const { url, token: fileToken } = await getFileUrl(monday, file.assetId, file.name);
+      const { url } = await getFileUrl(monday, file.assetId, file.name);
       
       if (!url) {
         throw new Error('Failed to get file URL');
@@ -226,34 +226,19 @@ function App() {
       
       console.log('Got file URL:', url);
       
-      // Download the image file directly in the frontend
-      setStatus('Downloading image...');
-      console.log('Downloading image from URL:', url);
-      const imageResponse = await fetch(url, {
-        headers: {
-          'Authorization': `Bearer ${fileToken}`,
-          'monday-api-token': fileToken
-        }
-      });
-
-      if (!imageResponse.ok) {
-        throw new Error(`Failed to download image: ${imageResponse.status} ${imageResponse.statusText}`);
-      }
-
-      const imageBlob = await imageResponse.blob();
-      console.log('Downloaded image blob:', imageBlob.size, 'bytes');
-
-      // Create FormData with the image blob
-      const formData = new FormData();
-      formData.append('image', imageBlob, file.name);
-      formData.append('width', '800');
-
       // Call our server endpoint to resize the image
       setStatus('Resizing image...');
       console.log('Sending resize request to server');
       const resizeResponse = await fetch('/resize-image', {
         method: 'POST',
-        body: formData
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          fileUrl: url,
+          token: token,
+          width: '800'
+        })
       });
 
       if (!resizeResponse.ok) {
@@ -294,7 +279,7 @@ function App() {
       const uploadResponse = await fetch('https://api.monday.com/v2/file', {
         method: 'POST',
         headers: {
-          'Authorization': fileToken
+          'Authorization': token
         },
         body: uploadFormData
       });
