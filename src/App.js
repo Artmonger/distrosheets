@@ -276,13 +276,19 @@ function App() {
 
       // Upload the resized image
       console.log('Uploading resized file to Monday.com');
-      const uploadResponse = await fetch('https://api.monday.com/v2/file', {
+      const uploadResponse = await fetch('/upload-to-monday', {
         method: 'POST',
         headers: {
           'Authorization': token
         },
         body: uploadFormData
       });
+
+      if (!uploadResponse.ok) {
+        const errorData = await uploadResponse.json();
+        console.error('Upload error response:', errorData);
+        throw new Error(`Failed to upload resized image: ${JSON.stringify(errorData)}`);
+      }
 
       const uploadResult = await uploadResponse.json();
       console.log("Upload response:", uploadResult);

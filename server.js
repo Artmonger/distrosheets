@@ -21,12 +21,15 @@ app.use(cors({
   ],
   credentials: true,
   methods: ['GET', 'POST', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'monday-api-token', 'Accept'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'monday-api-token', 'Accept', 'Content-Length'],
   exposedHeaders: ['Content-Type', 'Authorization', 'Content-Length', 'Cache-Control']
 }));
 
 // Parse JSON bodies with increased limit for large files
 app.use(express.json({ limit: '50mb' }));
+
+// Parse raw body for file uploads
+app.use(express.raw({ type: 'multipart/form-data', limit: '50mb' }));
 
 // Serve static files from the React app
 app.use(express.static(path.join(__dirname, 'build')));
@@ -256,6 +259,43 @@ app.post('/resize-image', async (req, res) => {
       error: 'Failed to process image',
       details: error.message,
       stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
+  }
+});
+
+// Endpoint to upload file to Monday.com
+app.post('/upload-to-monday', async (req, res) => {
+  try {
+    const { token } = req.headers;
+    if (!token) {
+      return res.status(400).json({ error: 'Missing token' });
+    }
+
+    // Forward the file upload to Monday.com
+    const response = await fetch('https://api.monday.com/v2/file', {
+      method: 'POST',
+      headers: {
+        'Authorization': token
+      },
+      body: req.body
+    });
+
+    if (!response.ok) {
+      console.error('Upload failed:', response.status, response.statusText);
+      const errorText = await response.text();
+      return res.status(response.status).json({ 
+        error: 'Failed to upload file to Monday.com',
+        details: errorText
+      });
+    }
+
+    const result = await response.json();
+    res.json(result);
+  } catch (error) {
+    console.error('Error uploading file:', error);
+    res.status(500).json({ 
+      error: 'Failed to upload file',
+      details: error.message
     });
   }
 });
