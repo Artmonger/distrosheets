@@ -105,25 +105,30 @@ function App() {
   const [status, setStatus] = useState('');
   const [sdkReady, setSdkReady] = useState(false);
 
+  // Use a ref to track if we've already fetched data for the current context
+  const dataFetchedRef = React.useRef({});
+
   useEffect(() => {
-    // Initialize Monday SDK
+    let mounted = true;
+    console.log('Starting Monday SDK initialization...');
+
     const initMondaySdk = async () => {
       try {
-        console.log('Starting Monday SDK initialization...');
-        
         // Set up context listener
         monday.listen('context', (res) => {
           console.log('Context event received:', res);
           if (res.data) {
-            setContext(res.data);
-            if (res.data.boardId && res.data.itemId) {
-              console.log('Valid context received, fetching item data...');
-              fetchItemData(res.data.boardId, res.data.itemId);
+            const contextKey = `${res.data.boardId}-${res.data.itemId}`;
+            if (!dataFetchedRef.current[contextKey]) {
+              console.log('New context received, fetching data...');
+              setContext(res.data);
+              if (res.data.boardId && res.data.itemId) {
+                dataFetchedRef.current[contextKey] = true;
+                fetchItemData(res.data.boardId, res.data.itemId);
+              }
             } else {
-              console.log('Context missing boardId or itemId:', res.data);
+              console.log('Data already fetched for this context');
             }
-          } else {
-            console.log('Empty context data received');
           }
         });
 
@@ -133,24 +138,33 @@ function App() {
         console.log('Initial context response:', contextRes);
         
         if (contextRes.data) {
-          setContext(contextRes.data);
-          if (contextRes.data.boardId && contextRes.data.itemId) {
-            console.log('Valid initial context, fetching item data...');
-            await fetchItemData(contextRes.data.boardId, contextRes.data.itemId);
-          } else {
-            console.log('Initial context missing boardId or itemId:', contextRes.data);
-            setError('Please open this app in a board item view');
+          const contextKey = `${contextRes.data.boardId}-${contextRes.data.itemId}`;
+          if (!dataFetchedRef.current[contextKey]) {
+            setContext(contextRes.data);
+            if (contextRes.data.boardId && contextRes.data.itemId) {
+              console.log('Valid initial context, fetching data...');
+              dataFetchedRef.current[contextKey] = true;
+              await fetchItemData(contextRes.data.boardId, contextRes.data.itemId);
+            } else {
+              console.log('Initial context missing boardId or itemId:', contextRes.data);
+              setError('Please open this app in a board item view');
+            }
           }
         } else {
           console.log('Empty initial context');
           setError('No context available. Please refresh the page.');
         }
 
-        setLoading(false);
+        if (mounted) {
+          setSdkReady(true);
+          setLoading(false);
+        }
       } catch (err) {
         console.error("Initialization error:", err);
-        setError(err.message);
-        setLoading(false);
+        if (mounted) {
+          setError(err.message);
+          setLoading(false);
+        }
       }
     };
 
@@ -158,6 +172,7 @@ function App() {
 
     // Cleanup
     return () => {
+      mounted = false;
       monday.removeEventListener('context');
     };
   }, []);
