@@ -253,26 +253,70 @@ function App() {
         size: resizeResult.size
       });
 
-      // Create the mutation to add the file
+      // Create a file object from the base64 data
+      const binaryData = atob(resizeResult.data);
+      const bytes = new Uint8Array(binaryData.length);
+      for (let i = 0; i < binaryData.length; i++) {
+        bytes[i] = binaryData.charCodeAt(i);
+      }
+      
+      const blob = new Blob([bytes], { type: resizeResult.contentType });
+      const fileToUpload = new File([blob], 'resized_image.jpg', { type: resizeResult.contentType });
+
+      // Create form data for file upload
+      const formData = new FormData();
+      formData.append('file', fileToUpload);
+
+      // First upload the file to Monday.com's file storage
       setStatus('Uploading resized image...');
+      const uploadResponse = await fetch('https://files.monday.com/upload', {
+        method: 'POST',
+        headers: {
+          'Authorization': token
+        },
+        body: formData
+      });
+
+      if (!uploadResponse.ok) {
+        throw new Error('Failed to upload file to Monday.com storage');
+      }
+
+      const uploadResult = await uploadResponse.json();
+      console.log('File upload response:', uploadResult);
+
+      if (!uploadResult.data || !uploadResult.data.id) {
+        throw new Error('Invalid upload response from Monday.com');
+      }
+
+      // Now create the mutation to link the file to the column
       const mutation = `mutation {
-        add_file_to_column(item_id: ${context.itemId}, column_id: "${itemData.targetFileColumnId}", file: "${resizeResult.data}") {
+        change_column_value(
+          board_id: ${context.boardId}, 
+          item_id: ${context.itemId}, 
+          column_id: "${itemData.targetFileColumnId}", 
+          value: ${JSON.stringify(JSON.stringify({
+            files: [{
+              assetId: uploadResult.data.id,
+              name: fileToUpload.name
+            }]
+          }))}
+        ) {
           id
         }
       }`;
 
-      // Upload using Monday SDK
-      console.log('Uploading resized file to Monday.com');
-      const uploadResult = await monday.api(mutation);
-      console.log("Upload response:", uploadResult);
+      // Link the file to the column
+      console.log('Linking file to column with mutation:', mutation);
+      const linkResult = await monday.api(mutation);
+      console.log("Link response:", linkResult);
 
-      if (uploadResult.data?.add_file_to_column?.id) {
-        console.log('Successfully uploaded resized image');
+      if (linkResult.data?.change_column_value?.id) {
+        console.log('Successfully uploaded and linked resized image');
         setStatus('Successfully resized and uploaded image!');
         await fetchItemData(context.itemId, context.boardId, monday);
         setError(null);
       } else {
-        throw new Error('Failed to upload resized image: ' + JSON.stringify(uploadResult.errors || uploadResult));
+        throw new Error('Failed to link file to column: ' + JSON.stringify(linkResult.errors || linkResult));
       }
     } catch (err) {
       console.error("Error during image resize:", err);
