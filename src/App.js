@@ -26,57 +26,26 @@ const getFileUrl = async (mondayInstance, assetId, fileName) => {
       throw new Error('No session token available');
     }
 
-    // Get the context
-    const context = await mondayInstance.get('context');
-    console.log('Full context:', context.data);
-    
-    // Get the item ID from context
-    const itemId = context.data.itemId;
-    if (!itemId) {
-      throw new Error('Missing item ID from context');
-    }
-
-    // Query for the file column value
+    // Get a direct download URL using Monday.com's API
     const query = `query {
-      items (ids: [${itemId}]) {
-        column_values {
-          id
-          type
-          text
-          value
-        }
+      assets(ids: [${assetId}]) {
+        url
+        public_url
       }
     }`;
 
+    console.log('Querying for asset URL:', query);
     const response = await mondayInstance.api(query);
-    console.log('API response:', response);
-    
-    if (!response.data?.items?.[0]?.column_values) {
-      throw new Error('Failed to get column values');
+    console.log('Asset URL response:', response);
+
+    if (!response.data?.assets?.[0]?.url) {
+      throw new Error('Failed to get asset URL from Monday.com API');
     }
 
-    // Find the file column that contains our asset ID
-    const columnValues = response.data.items[0].column_values;
-    const fileColumn = columnValues.find(cv => {
-      try {
-        const value = JSON.parse(cv.value || '{}');
-        return value.files?.[0]?.assetId === assetId;
-      } catch (e) {
-        return false;
-      }
-    });
-
-    if (fileColumn?.text) {
-      console.log('Found file URL:', fileColumn.text);
-      // Don't double-encode the URL - use it as is from Monday.com
-      return fileColumn.text;
-    }
-
-    // If we can't find the URL in the column values, construct it using the asset ID
-    const encodedFileName = encodeURIComponent(fileName);
-    const fallbackUrl = `https://files.monday.com/upload/${assetId}/${encodedFileName}`;
-    console.log('Using fallback URL:', fallbackUrl);
-    return fallbackUrl;
+    // Use the direct URL from the API response
+    const fileUrl = response.data.assets[0].url;
+    console.log('Got direct file URL:', fileUrl);
+    return fileUrl;
 
   } catch (err) {
     console.error('Error getting file URL:', err);
