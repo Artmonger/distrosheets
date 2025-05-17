@@ -13,29 +13,15 @@ const { promisify } = require('util');
 const pipeline = promisify(stream.pipeline);
 
 // Initialize Monday SDK with better error handling
-const initializeMondaySdk = () => {
-  return new Promise((resolve, reject) => {
-    try {
-      if (!mondaySdk) {
-        throw new Error('Monday SDK failed to initialize');
-      }
-      console.log('Monday SDK initialized successfully');
-      resolve(mondaySdk);
-    } catch (error) {
-      console.error('Error initializing Monday SDK:', error);
-      reject(error);
-    }
-  });
+const initializeMondaySdk = (token) => {
+  if (token) {
+    mondaySdk.setToken(token);
+  }
+  return mondaySdk;
 };
 
 const app = express();
 const PORT = process.env.PORT || 3001;
-
-// Initialize SDK before setting up routes
-initializeMondaySdk().catch(error => {
-  console.error('Failed to initialize Monday SDK:', error);
-  process.exit(1);
-});
 
 // Configure multer with strict limits
 const upload = multer({
@@ -50,7 +36,7 @@ const upload = multer({
 app.use(express.json({ limit: '5mb' }));
 app.use(express.raw({ limit: '5mb' }));
 
-// CORS configuration
+// CORS configuration with Monday.com domains
 app.use(cors({
   origin: [
     'https://monday-img-app-aaca18d8516b.herokuapp.com',

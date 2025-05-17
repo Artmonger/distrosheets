@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import mondaySdk from 'monday-sdk-js';
 import './App.css';
 
-// Initialize Monday SDK outside of component
+// Initialize Monday SDK
 const monday = mondaySdk();
 
 // Ensure SDK is initialized before use
@@ -109,16 +109,23 @@ function App() {
     // Initialize Monday SDK
     const initMondaySdk = async () => {
       try {
-        // Wait for SDK to be ready
-        await initializeMondaySdk();
-        setSdkReady(true);
+        // Listen for context changes
+        monday.listen('context', (res) => {
+          if (res.data) {
+            console.log('Context changed:', res.data);
+            setContext(res.data);
+            if (res.data.boardId && res.data.itemId) {
+              fetchItemData(res.data.itemId, res.data.boardId);
+            }
+          }
+        });
 
-        // Get context
-        const contextRes = await monday.get("context");
+        // Get initial context
+        const contextRes = await monday.get('context');
         if (!contextRes.data) {
           throw new Error('No context data received');
         }
-        console.log('Context data received:', contextRes.data);
+        console.log('Initial context data:', contextRes.data);
         setContext(contextRes.data);
 
         // If we have both boardId and itemId, fetch the item data
@@ -135,6 +142,11 @@ function App() {
     };
 
     initMondaySdk();
+
+    // Cleanup listener on unmount
+    return () => {
+      monday.removeEventListener('context');
+    };
   }, []);
 
   // Prevent any API calls if SDK is not ready
