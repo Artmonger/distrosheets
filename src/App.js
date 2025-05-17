@@ -19,13 +19,24 @@ const initializeMondaySdk = async () => {
       console.log('Waiting for Monday SDK initialization...');
       let attempts = 0;
       const maxAttempts = 100; // 10 seconds total with 100ms intervals
-      
+
       // Add script tag if it doesn't exist
       if (!document.getElementById('monday-sdk-js')) {
         const script = document.createElement('script');
         script.id = 'monday-sdk-js';
         script.src = 'https://cdn.monday.com/monday-sdk-js/0.5.2/monday-sdk-client.js';
+        script.async = true;
+        script.onload = () => {
+          console.log('Monday SDK script loaded');
+          // Initialize SDK after script loads
+          window.mondaySdk.init();
+        };
         document.head.appendChild(script);
+      } else {
+        // If script exists but SDK not initialized, initialize it
+        if (window.mondaySdk && !window.mondaySDK) {
+          window.mondaySdk.init();
+        }
       }
 
       const checkInterval = setInterval(() => {
