@@ -33,8 +33,8 @@ app.post('/resize-image', async (req, res) => {
     console.log('Received resize request');
     const { fileUrl, width, token } = req.body;
     
-    if (!fileUrl || !width) {
-      console.error('Missing parameters:', { fileUrl: !!fileUrl, width: !!width });
+    if (!fileUrl || !width || !token) {
+      console.error('Missing parameters:', { fileUrl: !!fileUrl, width: !!width, token: !!token });
       return res.status(400).json({ error: 'Missing required parameters' });
     }
 
@@ -44,22 +44,45 @@ app.post('/resize-image', async (req, res) => {
     const response = await fetch(fileUrl, {
       headers: {
         'Accept': 'image/*',
+        'Authorization': token,
         'Cache-Control': 'no-cache',
-        'Authorization': token
-      }
+        'User-Agent': 'Monday Image Resizer App'
+      },
+      redirect: 'follow',
+      follow: 5
     });
 
     if (!response.ok) {
-      console.error('Download failed:', response.status, response.statusText);
+      console.error('Download failed:', {
+        status: response.status,
+        statusText: response.statusText,
+        headers: Object.fromEntries(response.headers.entries())
+      });
       throw new Error(`Failed to download image: ${response.status} ${response.statusText}`);
+    }
+
+    // Check content type
+    const contentType = response.headers.get('content-type');
+    if (!contentType || !contentType.startsWith('image/')) {
+      throw new Error(`Invalid content type: ${contentType}`);
     }
     
     const buffer = await response.buffer();
     console.log('Downloaded image, size:', buffer.length, 'bytes');
 
+    if (buffer.length === 0) {
+      throw new Error('Downloaded file is empty');
+    }
+
     // Get image metadata
-    const metadata = await sharp(buffer).metadata();
-    console.log('Image metadata:', metadata);
+    let metadata;
+    try {
+      metadata = await sharp(buffer).metadata();
+      console.log('Image metadata:', metadata);
+    } catch (err) {
+      console.error('Error reading image metadata:', err);
+      throw new Error('Invalid image file');
+    }
 
     // Resize the image
     console.log('Resizing image to width:', width);
@@ -68,13 +91,17 @@ app.post('/resize-image', async (req, res) => {
         fit: 'contain',
         withoutEnlargement: true
       })
-      .jpeg({ quality: 85 })
+      .jpeg({ 
+        quality: 85,
+        force: false // Don't force JPEG if input is PNG
+      })
       .toBuffer();
 
     console.log('Resized image, new size:', resizedBuffer.length, 'bytes');
 
     // Send the resized image back
-    res.set('Content-Type', 'image/jpeg');
+    res.set('Content-Type', metadata.format === 'png' ? 'image/png' : 'image/jpeg');
+    res.set('Cache-Control', 'no-cache');
     res.send(resizedBuffer);
     console.log('Successfully sent resized image');
   } catch (error) {

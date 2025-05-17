@@ -28,19 +28,54 @@ const getFileUrl = async (mondayInstance, assetId, fileName) => {
 
     // Get the context
     const context = await mondayInstance.get('context');
-    console.log('Full context for URL construction:', context.data);
+    console.log('Full context:', context.data);
     
-    // Extract account information
-    const accountSubdomain = context.data?.account?.slug || context.data?.account?.name?.toLowerCase().replace(/[^a-z0-9]/g, '');
-    
-    if (!accountSubdomain) {
-      throw new Error('Missing account subdomain');
+    // Get the item ID from context
+    const itemId = context.data.itemId;
+    if (!itemId) {
+      throw new Error('Missing item ID from context');
     }
 
-    // Construct the file URL using the account subdomain
-    const fileUrl = `https://${accountSubdomain}.monday.com/protected_static/${assetId}/${encodeURIComponent(fileName)}`;
-    console.log('Constructed file URL:', fileUrl);
-    return fileUrl;
+    // Query for the file column value
+    const query = `query {
+      items (ids: [${itemId}]) {
+        column_values {
+          id
+          type
+          text
+          value
+        }
+      }
+    }`;
+
+    const response = await mondayInstance.api(query);
+    console.log('API response:', response);
+    
+    if (!response.data?.items?.[0]?.column_values) {
+      throw new Error('Failed to get column values');
+    }
+
+    // Find the file column that contains our asset ID
+    const columnValues = response.data.items[0].column_values;
+    const fileColumn = columnValues.find(cv => {
+      try {
+        const value = JSON.parse(cv.value || '{}');
+        return value.files?.[0]?.assetId === assetId;
+      } catch (e) {
+        return false;
+      }
+    });
+
+    if (fileColumn?.text) {
+      console.log('Found file URL:', fileColumn.text);
+      return fileColumn.text;
+    }
+
+    // If we can't find the URL in the column values, construct it using the asset ID
+    const fallbackUrl = `https://files.monday.com/upload/${assetId}/${fileName}`;
+    console.log('Using fallback URL:', fallbackUrl);
+    return fallbackUrl;
+
   } catch (err) {
     console.error('Error getting file URL:', err);
     throw err;
