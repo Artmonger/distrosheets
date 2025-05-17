@@ -15,7 +15,7 @@
     "boards": {
       "item_views": {
         "main": {
-          "type": "absolute",
+          "type": "board-view",
           "name": "Image Resizer",
           "url": "https://monday-img-app-aaca18d8516b.herokuapp.com/",
           "description": "Click a button to resize images. Requires two file columns - one for original images and one for resized images.",

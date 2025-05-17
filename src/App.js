@@ -109,10 +109,6 @@ function App() {
     // Initialize Monday SDK
     const initMondaySdk = async () => {
       try {
-        // First initialize the SDK
-        await monday.execute('init');
-        console.log('Monday SDK initialized');
-
         // Set up context listener
         monday.listen('context', (res) => {
           if (res.data) {
