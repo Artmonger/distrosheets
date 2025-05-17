@@ -87,6 +87,7 @@ async function downloadFileFromMonday(fileUrl, token) {
     console.log('API response:', JSON.stringify(result, null, 2));
 
     if (!result.data?.assets?.[0]?.url) {
+      console.error('API response missing URL:', result);
       throw new Error('Failed to get URL from Monday.com API');
     }
 
@@ -97,7 +98,7 @@ async function downloadFileFromMonday(fileUrl, token) {
     console.log('Attempting download...');
     const response = await fetch(downloadUrl, {
       headers: {
-        'Authorization': token,
+        'Authorization': `Bearer ${token}`,
         'Accept': '*/*'
       }
     });
@@ -176,7 +177,7 @@ app.post('/resize-image', async (req, res) => {
     // Get image metadata and validate it's an image
     let metadata;
     try {
-      metadata = await sharp(buffer).metadata();
+      metadata = await sharp(Buffer.from(buffer)).metadata();
       console.log('Image metadata:', metadata);
 
       if (!metadata.format) {
@@ -189,7 +190,7 @@ app.post('/resize-image', async (req, res) => {
 
     // Resize the image
     console.log('Resizing image to width:', width);
-    const resizedBuffer = await sharp(buffer, {
+    const resizedBuffer = await sharp(Buffer.from(buffer), {
       failOnError: true
     })
     .resize(parseInt(width), null, { 
