@@ -109,26 +109,41 @@ function App() {
     // Initialize Monday SDK
     const initMondaySdk = async () => {
       try {
+        console.log('Starting Monday SDK initialization...');
+        
         // Set up context listener
         monday.listen('context', (res) => {
+          console.log('Context event received:', res);
           if (res.data) {
-            console.log('Context updated:', res.data);
             setContext(res.data);
             if (res.data.boardId && res.data.itemId) {
+              console.log('Valid context received, fetching item data...');
               fetchItemData(res.data.boardId, res.data.itemId);
+            } else {
+              console.log('Context missing boardId or itemId:', res.data);
             }
+          } else {
+            console.log('Empty context data received');
           }
         });
 
         // Get initial context
+        console.log('Getting initial context...');
         const contextRes = await monday.get('context');
-        console.log('Initial context:', contextRes);
+        console.log('Initial context response:', contextRes);
         
         if (contextRes.data) {
           setContext(contextRes.data);
           if (contextRes.data.boardId && contextRes.data.itemId) {
+            console.log('Valid initial context, fetching item data...');
             await fetchItemData(contextRes.data.boardId, contextRes.data.itemId);
+          } else {
+            console.log('Initial context missing boardId or itemId:', contextRes.data);
+            setError('Please open this app in a board item view');
           }
+        } else {
+          console.log('Empty initial context');
+          setError('No context available. Please refresh the page.');
         }
 
         setLoading(false);
@@ -159,14 +174,19 @@ function App() {
   const fetchItemData = async (boardId, itemId) => {
     if (!boardId || !itemId) {
       console.log('Missing boardId or itemId:', { boardId, itemId });
+      setError('Missing board or item information');
       return;
     }
 
     try {
       setStatus('Fetching board data...');
+      console.log('Fetching board data for:', { boardId, itemId });
+
       // Get the board columns
       const columnsQuery = `query {
         boards (ids: ${boardId}) {
+          id
+          name
           columns {
             id
             title
@@ -176,6 +196,7 @@ function App() {
         }
       }`;
 
+      console.log('Executing columns query:', columnsQuery);
       const columnsResponse = await monday.api(columnsQuery);
       console.log("Board columns response:", columnsResponse);
 
@@ -188,6 +209,9 @@ function App() {
         items (ids: ${itemId}) {
           id
           name
+          board {
+            id
+          }
           column_values {
             id
             column {
@@ -201,6 +225,7 @@ function App() {
         }
       }`;
 
+      console.log('Executing item query:', itemQuery);
       const itemResponse = await monday.api(itemQuery);
       console.log("Item data response:", itemResponse);
 
@@ -211,6 +236,7 @@ function App() {
       // Find the file columns
       const columns = columnsResponse.data.boards[0].columns;
       const fileColumns = columns.filter(col => col.type === 'file');
+      console.log('Found file columns:', fileColumns);
       
       if (fileColumns.length < 2) {
         throw new Error('Please add two file columns to your board - one for original images and one for resized images.');

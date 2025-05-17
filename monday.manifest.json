@@ -9,13 +9,15 @@
     "boards:read",
     "boards:write",
     "files:read",
-    "files:write"
+    "files:write",
+    "context:read",
+    "context:write"
   ],
   "features": {
     "boards": {
       "item_views": {
         "main": {
-          "type": "board-view",
+          "type": "item_view",
           "name": "Image Resizer",
           "url": "https://monday-img-app-aaca18d8516b.herokuapp.com/",
           "description": "Click a button to resize images. Requires two file columns - one for original images and one for resized images.",
@@ -24,7 +26,9 @@
             "boards:read",
             "boards:write",
             "files:read",
-            "files:write"
+            "files:write",
+            "context:read",
+            "context:write"
           ],
           "supported_column_types": ["file"]
         }
