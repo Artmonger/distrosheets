@@ -269,16 +269,18 @@ app.post('/resize-image', async (req, res) => {
   }
 });
 
-// Endpoint to upload file to Monday.com
-app.post('/upload-to-monday', async (req, res) => {
+// New proxy endpoint for file uploads to Monday.com
+app.post('/proxy-upload', async (req, res) => {
   try {
     const { token } = req.headers;
     if (!token) {
       return res.status(400).json({ error: 'Missing token' });
     }
 
+    console.log('Proxying file upload to Monday.com');
+    
     // Forward the file upload to Monday.com
-    const response = await fetch('https://api.monday.com/v2/file', {
+    const uploadResponse = await fetch('https://files.monday.com/upload', {
       method: 'POST',
       headers: {
         'Authorization': token
@@ -286,19 +288,20 @@ app.post('/upload-to-monday', async (req, res) => {
       body: req.body
     });
 
-    if (!response.ok) {
-      console.error('Upload failed:', response.status, response.statusText);
-      const errorText = await response.text();
-      return res.status(response.status).json({ 
+    if (!uploadResponse.ok) {
+      console.error('Upload failed:', uploadResponse.status, uploadResponse.statusText);
+      const errorText = await uploadResponse.text();
+      return res.status(uploadResponse.status).json({ 
         error: 'Failed to upload file to Monday.com',
         details: errorText
       });
     }
 
-    const result = await response.json();
+    const result = await uploadResponse.json();
+    console.log('Upload successful:', result);
     res.json(result);
   } catch (error) {
-    console.error('Error uploading file:', error);
+    console.error('Error proxying file upload:', error);
     res.status(500).json({ 
       error: 'Failed to upload file',
       details: error.message

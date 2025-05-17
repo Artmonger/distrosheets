@@ -267,9 +267,9 @@ function App() {
       const formData = new FormData();
       formData.append('file', fileToUpload);
 
-      // First upload the file to Monday.com's file storage
+      // First upload the file to Monday.com's file storage through our proxy
       setStatus('Uploading resized image...');
-      const uploadResponse = await fetch('https://files.monday.com/upload', {
+      const uploadResponse = await fetch('/proxy-upload', {
         method: 'POST',
         headers: {
           'Authorization': token
@@ -278,7 +278,8 @@ function App() {
       });
 
       if (!uploadResponse.ok) {
-        throw new Error('Failed to upload file to Monday.com storage');
+        const errorData = await uploadResponse.json();
+        throw new Error(`Failed to upload file: ${errorData.error || errorData.details || uploadResponse.statusText}`);
       }
 
       const uploadResult = await uploadResponse.json();
