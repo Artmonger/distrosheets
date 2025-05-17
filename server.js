@@ -294,7 +294,7 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok' });
 });
 
-app.post('/proxy-upload', express.raw({ type: 'multipart/form-data', limit: '5mb' }), async (req, res) => {
+app.post('/proxy-upload', express.raw({ type: '*/*', limit: '5mb' }), async (req, res) => {
   try {
     console.log('Starting file upload process');
     const token = req.headers['authorization'];
@@ -304,21 +304,22 @@ app.post('/proxy-upload', express.raw({ type: 'multipart/form-data', limit: '5mb
       return res.status(400).json({ error: 'Missing token' });
     }
 
-    // Create a readable stream from the request body
-    const readable = new stream.Readable();
-    readable._read = () => {}; // Required but noop
-    readable.push(req.body);
-    readable.push(null);
+    // Create form data
+    const form = new FormData();
+    form.append('file', req.body, {
+      filename: 'resized_image.jpg',
+      contentType: 'image/jpeg'
+    });
 
-    // Upload directly to Monday.com
+    // Upload to Monday.com
     console.log('Uploading to Monday.com');
     const uploadResponse = await fetch('https://files.monday.com/upload', {
       method: 'POST',
       headers: {
         'Authorization': token.startsWith('Bearer ') ? token : `Bearer ${token}`,
-        'Content-Type': 'multipart/form-data'
+        // Let form-data set its own content-type with boundary
       },
-      body: readable,
+      body: form,
       timeout: 10000 // 10 second timeout
     });
 
