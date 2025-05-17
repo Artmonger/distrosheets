@@ -21,7 +21,7 @@
     "build": "react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject",
-    "heroku-prebuild": "npm ci",
+    "heroku-prebuild": "npm install",
     "heroku-postbuild": "npm run build"
   },
   "eslintConfig": {
