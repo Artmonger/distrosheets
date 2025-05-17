@@ -68,10 +68,8 @@ const getFileUrl = async (mondayInstance, assetId, fileName) => {
 
     if (fileColumn?.text) {
       console.log('Found file URL:', fileColumn.text);
-      // Ensure the URL is properly encoded
-      const url = new URL(fileColumn.text);
-      url.pathname = encodeURI(url.pathname);
-      return url.toString();
+      // Don't double-encode the URL - use it as is from Monday.com
+      return fileColumn.text;
     }
 
     // If we can't find the URL in the column values, construct it using the asset ID

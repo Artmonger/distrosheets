@@ -44,7 +44,11 @@ app.post('/resize-image', async (req, res) => {
     const response = await fetch(fileUrl, {
       headers: {
         'Authorization': token,
-        'Cache-Control': 'no-cache'
+        'Accept': '*/*',
+        'Accept-Encoding': 'gzip, deflate, br',
+        'Connection': 'keep-alive',
+        'Cache-Control': 'no-cache',
+        'monday-api-token': token
       },
       redirect: 'follow',
       follow: 5
@@ -88,8 +92,7 @@ app.post('/resize-image', async (req, res) => {
         withoutEnlargement: true
       })
       .toFormat(metadata.format, {
-        quality: 85,
-        force: false
+        quality: 85
       })
       .toBuffer();
 
