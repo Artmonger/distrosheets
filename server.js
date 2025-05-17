@@ -44,11 +44,13 @@ app.post('/resize-image', async (req, res) => {
     const response = await fetch(fileUrl, {
       headers: {
         'Authorization': token,
+        'monday-api-token': token,
         'Accept': '*/*',
         'Accept-Encoding': 'gzip, deflate, br',
         'Connection': 'keep-alive',
         'Cache-Control': 'no-cache',
-        'monday-api-token': token
+        'User-Agent': 'monday-image-resizer/1.0',
+        'Referer': 'https://artmonger.monday.com/'
       },
       redirect: 'follow',
       follow: 5
@@ -58,10 +60,14 @@ app.post('/resize-image', async (req, res) => {
       console.error('Download failed:', {
         status: response.status,
         statusText: response.statusText,
-        headers: Object.fromEntries(response.headers.entries())
+        headers: Object.fromEntries(response.headers.entries()),
+        url: response.url
       });
       throw new Error(`Failed to download image: ${response.status} ${response.statusText}`);
     }
+
+    const contentType = response.headers.get('content-type');
+    console.log('Response content type:', contentType);
 
     const buffer = await response.buffer();
     console.log('Downloaded image, size:', buffer.length, 'bytes');
@@ -92,15 +98,16 @@ app.post('/resize-image', async (req, res) => {
         withoutEnlargement: true
       })
       .toFormat(metadata.format, {
-        quality: 85
+        quality: 85,
+        chromaSubsampling: '4:4:4'
       })
       .toBuffer();
 
     console.log('Resized image, new size:', resizedBuffer.length, 'bytes');
 
     // Send the resized image back with the correct content type
-    const contentType = `image/${metadata.format}`;
-    res.set('Content-Type', contentType);
+    const outputContentType = `image/${metadata.format}`;
+    res.set('Content-Type', outputContentType);
     res.set('Cache-Control', 'no-cache');
     res.send(resizedBuffer);
     console.log('Successfully sent resized image');
