@@ -253,7 +253,9 @@ function App() {
       const resizeResponse = await fetch('/resize-image', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+          'API-Version': '2024-01'
         },
         body: JSON.stringify({
           fileUrl: fileUrl,
@@ -307,7 +309,8 @@ function App() {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`,
-            'API-Version': '2024-01'
+            'API-Version': '2024-01',
+            'monday-api-token': token
           },
           body: formData
         });

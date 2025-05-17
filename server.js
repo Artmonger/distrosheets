@@ -156,25 +156,54 @@ async function downloadFileFromMonday(fileUrl, token) {
   }
 }
 
+// Helper function to extract and validate token
+const getValidToken = (req) => {
+  let token = req.headers['authorization'] || req.headers['monday-api-token'] || req.body.token;
+  
+  if (!token) {
+    throw new Error('No token provided');
+  }
+
+  // Remove Bearer prefix if present
+  token = token.replace('Bearer ', '');
+  
+  // Validate token format
+  if (!token.match(/^[a-zA-Z0-9._-]+$/)) {
+    throw new Error('Invalid token format');
+  }
+
+  return token;
+};
+
 // Endpoint to resize images
 app.post('/resize-image', async (req, res) => {
   try {
     console.log('Received resize request');
-    const { fileUrl, width, token } = req.body;
+    const { fileUrl, width } = req.body;
+    
+    // Get token using the helper function
+    let token;
+    try {
+      token = getValidToken(req);
+    } catch (tokenError) {
+      console.error('Token error:', tokenError);
+      return res.status(401).json({ 
+        error: 'Authentication failed',
+        details: tokenError.message
+      });
+    }
     
     // Validate required parameters
-    if (!fileUrl || !width || !token) {
+    if (!fileUrl || !width) {
       console.error('Missing parameters:', { 
         hasFileUrl: !!fileUrl, 
-        hasWidth: !!width, 
-        hasToken: !!token 
+        hasWidth: !!width
       });
       return res.status(400).json({ 
         error: 'Missing required parameters',
         details: {
           fileUrl: !fileUrl ? 'Missing file URL' : null,
-          width: !width ? 'Missing width' : null,
-          token: !token ? 'Missing token' : null
+          width: !width ? 'Missing width' : null
         }
       });
     }
@@ -296,20 +325,21 @@ app.get('/health', (req, res) => {
 app.post('/proxy-upload', upload.single('file'), async (req, res) => {
   try {
     console.log('Starting file upload process');
-    let token = req.headers['authorization'] || req.headers['monday-api-token'];
     
-    if (!token) {
-      console.log('Missing token in request');
-      return res.status(400).json({ error: 'Missing token' });
-    }
-
-    // Ensure token has Bearer prefix
-    if (!token.startsWith('Bearer ')) {
-      token = `Bearer ${token}`;
+    // Get token using the helper function
+    let token;
+    try {
+      token = getValidToken(req);
+    } catch (tokenError) {
+      console.error('Token error:', tokenError);
+      return res.status(401).json({ 
+        error: 'Authentication failed',
+        details: tokenError.message
+      });
     }
 
     // Initialize Monday SDK with token
-    const monday = initializeMondaySdk(token.replace('Bearer ', ''));
+    const monday = initializeMondaySdk(token);
 
     // Create form data with proper boundaries
     const form = new FormData();
@@ -321,16 +351,16 @@ app.post('/proxy-upload', upload.single('file'), async (req, res) => {
     // Get the form boundary and headers
     const formHeaders = form.getHeaders();
 
-    // Upload directly to Monday.com's API
-    console.log('Uploading to Monday.com');
+    // Upload directly to Monday.com's API with consistent headers
+    console.log('Uploading to Monday.com with token');
     const uploadResponse = await fetch('https://api.monday.com/v2/file', {
       method: 'POST',
       headers: {
-        'Authorization': token,
+        'Authorization': `Bearer ${token}`,
         'API-Version': '2024-01',
+        'monday-api-token': token,
         'Content-Type': formHeaders['content-type'],
-        'Accept': 'application/json',
-        ...formHeaders
+        'Accept': 'application/json'
       },
       body: form
     });
