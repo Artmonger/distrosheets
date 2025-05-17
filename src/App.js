@@ -254,12 +254,10 @@ function App() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-          'API-Version': '2024-01'
+          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
           fileUrl: fileUrl,
-          token: token,
           width: '800'
         })
       });
@@ -283,91 +281,63 @@ function App() {
       const blob = new Blob([bytes], { type: resizeResult.contentType });
       const fileToUpload = new File([blob], 'resized_image.jpg', { type: resizeResult.contentType });
 
-      const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
-
-      if (blob.size > MAX_FILE_SIZE) {
-        throw new Error(`File size exceeds limit of ${MAX_FILE_SIZE / (1024 * 1024)}MB`);
-      }
-
-      // Upload to our proxy endpoint
+      // Upload directly using Monday's SDK
       setStatus('Uploading resized image...');
-      console.log('Starting upload to proxy endpoint');
-      
-      try {
-        // First check server health
-        const healthCheck = await fetch('/health');
-        if (!healthCheck.ok) {
-          throw new Error('Server is not responding');
+      console.log('Starting upload via Monday SDK');
+
+      const formData = new FormData();
+      formData.append('query', `mutation($file: File!) {
+        add_file_to_column(file: $file) {
+          url
+          id
         }
+      }`);
+      formData.append('variables', JSON.stringify({ file: null }));
+      formData.append('map', JSON.stringify({ "0": ["variables.file"] }));
+      formData.append('0', fileToUpload);
 
-        // Create form data for the upload
-        const formData = new FormData();
-        formData.append('file', fileToUpload);
+      const uploadResponse = await monday.api(formData);
+      console.log('Upload response:', uploadResponse);
 
-        // Now do the upload
-        const uploadResponse = await fetch('/proxy-upload', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`
-          },
-          body: formData
-        });
-
-        console.log('Upload response status:', uploadResponse.status);
-        const responseText = await uploadResponse.text();
-        console.log('Upload response text:', responseText);
-
-        if (!uploadResponse.ok) {
-          throw new Error(`Upload failed (${uploadResponse.status}): ${responseText}`);
-        }
-
-        let uploadResult;
-        try {
-          uploadResult = JSON.parse(responseText);
-          console.log('Parsed upload result:', uploadResult);
-
-          if (!uploadResult.data?.url) {
-            throw new Error('Invalid response format from server');
-          }
-        } catch (err) {
-          console.error('Failed to parse upload response:', err);
-          throw new Error(`Invalid response from server: ${responseText}`);
-        }
-
-        // Now create the mutation to link the file
-        const mutation = `mutation {
-          change_column_value(
-            board_id: ${context.boardId}, 
-            item_id: ${context.itemId}, 
-            column_id: "${itemData.targetFileColumnId}", 
-            value: ${JSON.stringify(JSON.stringify({
-              files: [{
-                url: uploadResult.data.url,
-                name: fileToUpload.name
-              }]
-            }))}
-          ) {
-            id
-          }
-        }`;
-
-        // Link the file to the column
-        console.log('Linking file to column with mutation:', mutation);
-        const linkResult = await monday.api(mutation);
-        console.log("Link response:", linkResult);
-
-        if (linkResult.data?.change_column_value?.id) {
-          console.log('Successfully uploaded and linked resized image');
-          setStatus('Successfully resized and uploaded image!');
-          await fetchItemData(context.boardId, context.itemId);
-          setError(null);
-        } else {
-          throw new Error('Failed to link file to column: ' + JSON.stringify(linkResult.errors || linkResult));
-        }
-      } catch (uploadError) {
-        console.error('Upload error:', uploadError);
-        throw new Error(`Upload failed: ${uploadError.message}`);
+      if (uploadResponse.errors) {
+        throw new Error('Upload failed: ' + JSON.stringify(uploadResponse.errors));
       }
+
+      if (!uploadResponse.data?.add_file_to_column?.url) {
+        throw new Error('Invalid upload response: ' + JSON.stringify(uploadResponse));
+      }
+
+      // Now create the mutation to link the file
+      const mutation = `mutation {
+        change_column_value(
+          board_id: ${context.boardId}, 
+          item_id: ${context.itemId}, 
+          column_id: "${itemData.targetFileColumnId}", 
+          value: ${JSON.stringify(JSON.stringify({
+            files: [{
+              url: uploadResponse.data.add_file_to_column.url,
+              name: fileToUpload.name
+            }]
+          }))}
+        ) {
+          id
+        }
+      }`;
+
+      // Link the file to the column
+      console.log('Linking file to column with mutation:', mutation);
+      const linkResult = await monday.api(mutation);
+      console.log("Link response:", linkResult);
+
+      if (linkResult.data?.change_column_value?.id) {
+        console.log('Successfully uploaded and linked resized image');
+        setStatus('Successfully resized and uploaded image!');
+        await fetchItemData(context.boardId, context.itemId);
+        setError(null);
+      } else {
+        throw new Error('Failed to link file to column: ' + JSON.stringify(linkResult.errors || linkResult));
+      }
+
     } catch (err) {
       console.error("Error during image resize:", err);
       setError('Failed to resize image: ' + err.message);
