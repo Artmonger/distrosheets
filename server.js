@@ -325,6 +325,8 @@ app.post('/proxy-upload', upload.single('file'), async (req, res) => {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,  // Add Bearer prefix for Monday.com API
+        'monday-api-token': token,  // Add monday-api-token header
+        'Accept': '*/*',  // Add Accept header
         ...formHeaders  // This includes the correct Content-Type with boundary
       },
       body: form
