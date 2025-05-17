@@ -269,17 +269,24 @@ function App() {
 
       // First upload the file to Monday.com's file storage through our proxy
       setStatus('Uploading resized image...');
+      console.log('Uploading with token:', token ? 'present' : 'missing');
+      
       const uploadResponse = await fetch('/proxy-upload', {
         method: 'POST',
         headers: {
-          'monday-api-token': token,
-          'Authorization': `Bearer ${token}`
+          'Authorization': token,
+          'Content-Type': 'multipart/form-data'
         },
         body: formData
       });
 
       if (!uploadResponse.ok) {
         const errorData = await uploadResponse.json();
+        console.error('Upload failed:', {
+          status: uploadResponse.status,
+          statusText: uploadResponse.statusText,
+          error: errorData
+        });
         throw new Error(`Failed to upload file: ${errorData.error || errorData.details || uploadResponse.statusText}`);
       }
 

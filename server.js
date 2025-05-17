@@ -272,37 +272,46 @@ app.post('/resize-image', async (req, res) => {
 // New proxy endpoint for file uploads to Monday.com
 app.post('/proxy-upload', async (req, res) => {
   try {
-    // Check for token in various header formats
-    const token = req.headers['monday-api-token'] || 
-                 req.headers['authorization']?.replace('Bearer ', '') || 
-                 req.headers['Authorization']?.replace('Bearer ', '');
-
+    const token = req.headers['authorization'];
+    
     if (!token) {
       console.error('Missing token in headers:', req.headers);
       return res.status(400).json({ error: 'Missing token' });
     }
 
-    console.log('Proxying file upload to Monday.com');
+    console.log('Proxying file upload to Monday.com with token:', token ? 'present' : 'missing');
     
     // Forward the file upload to Monday.com
     const uploadResponse = await fetch('https://files.monday.com/upload', {
       method: 'POST',
       headers: {
         'Authorization': token,
-        'monday-api-token': token
+        'Content-Type': 'multipart/form-data'
       },
-      body: req.body
+      body: req.body,
+      duplex: 'half'
     });
 
     if (!uploadResponse.ok) {
       console.error('Upload failed:', {
         status: uploadResponse.status,
-        statusText: uploadResponse.statusText
+        statusText: uploadResponse.statusText,
+        headers: uploadResponse.headers.raw()
       });
-      const errorText = await uploadResponse.text();
+      
+      let errorText;
+      try {
+        errorText = await uploadResponse.text();
+        console.error('Error response body:', errorText);
+      } catch (e) {
+        console.error('Failed to read error response:', e);
+        errorText = 'Unable to read error details';
+      }
+
       return res.status(uploadResponse.status).json({ 
         error: 'Failed to upload file to Monday.com',
-        details: errorText
+        details: errorText,
+        status: uploadResponse.status
       });
     }
 
@@ -313,7 +322,8 @@ app.post('/proxy-upload', async (req, res) => {
     console.error('Error proxying file upload:', error);
     res.status(500).json({ 
       error: 'Failed to upload file',
-      details: error.message
+      details: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
   }
 });
