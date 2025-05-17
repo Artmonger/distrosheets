@@ -1,26 +1,30 @@
 {
-  "app_name": "Monday Image Transfer",
-  "description": "Transfer files between columns in your Monday.com board - easily move files from one column to another with a single click",
+  "app_name": "Monday Image Resizer",
+  "description": "Automatically resize images in your Monday.com board. Simply click a button to resize images and save them to another column.",
   "version": "1.0.0",
   "icon": "https://raw.githubusercontent.com/mondaycom/monday-ui-react-core/master/src/assets/icons/file-dock.svg",
   "author": "Cameron Smith",
   "author_url": "www.artmonger.nyc",
   "permissions": [
     "boards:read",
-    "boards:write"
+    "boards:write",
+    "files:read",
+    "files:write"
   ],
   "features": {
     "boards": {
       "item_views": {
         "main": {
           "type": "absolute",
-          "name": "File Transfer",
-          "url": "https://sleepy-refuge-49183-4f68ab005116.herokuapp.com/",
-          "description": "Transfer files between columns in your board. Requires file column types to work properly.",
+          "name": "Image Resizer",
+          "url": "https://monday-img-app.herokuapp.com/",
+          "description": "Click a button to resize images. Requires two file columns - one for original images and one for resized images.",
           "height": 300,
           "required_scopes": [
             "boards:read",
-            "boards:write"
+            "boards:write",
+            "files:read",
+            "files:write"
           ],
           "supported_column_types": ["file"]
         }

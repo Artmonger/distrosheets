@@ -77,6 +77,7 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [monday, setMonday] = useState(null);
+  const [status, setStatus] = useState('');
 
   useEffect(() => {
     // Initialize Monday SDK
@@ -111,6 +112,7 @@ function App() {
 
   const fetchItemData = async (itemId, boardId, mondayInstance) => {
     try {
+      setStatus('Fetching board data...');
       // Get the board columns
       const columnsQuery = `query {
         boards (ids: ${boardId}) {
@@ -130,6 +132,7 @@ function App() {
         throw new Error('Failed to fetch board columns');
       }
 
+      setStatus('Fetching item data...');
       // Get the item data
       const itemQuery = `query {
         items (ids: ${itemId}) {
@@ -155,51 +158,28 @@ function App() {
         throw new Error('Failed to fetch item data');
       }
 
-      // Find the status and file columns
+      // Find the file columns
       const columns = columnsResponse.data.boards[0].columns;
-      const statusColumn = columns.find(col => col.type === 'status');
       const fileColumns = columns.filter(col => col.type === 'file');
       
-      console.log('Status column:', statusColumn);
       console.log('File columns:', fileColumns);
+
+      if (fileColumns.length < 2) {
+        throw new Error('Please add two file columns to your board - one for original images and one for resized images.');
+      }
 
       setItemData({
         item: itemResponse.data.items[0],
         columns: columnsResponse.data.boards[0].columns,
-        statusColumnId: statusColumn?.id,
         sourceFileColumnId: fileColumns[0]?.id,
         targetFileColumnId: fileColumns[1]?.id
       });
 
-      // Subscribe to item changes
-      await mondayInstance.listen(['item_updated'], res => {
-        console.log('Item updated event:', res.data);
-        
-        // Extract the column ID and value
-        const columnId = res.data.value.column_id;
-        const value = res.data.value.value;
-        
-        console.log('Column changed:', columnId, 'New value:', value);
-        
-        // Check if it's the status column
-        if (columnId === statusColumn?.id) {
-          try {
-            const statusValue = JSON.parse(value);
-            console.log('Parsed status value:', statusValue);
-            
-            if (statusValue.label?.toLowerCase() === 'resize') {
-              console.log('Status changed to Resize - starting image processing');
-              handleImageResize();
-            }
-          } catch (err) {
-            console.error('Error parsing status value:', err);
-          }
-        }
-      });
-
+      setStatus('Ready to resize images');
       setError(null);
     } catch (err) {
       console.error("Error fetching data:", err);
+      setError(err.message);
       throw err;
     }
   };
@@ -207,7 +187,7 @@ function App() {
   const handleImageResize = async () => {
     try {
       setLoading(true);
-      console.log('Starting image resize process');
+      setStatus('Starting image resize process...');
       console.log('Current item data:', itemData);
       
       // Find the source file column using the stored ID
@@ -215,7 +195,7 @@ function App() {
       console.log('Source column:', sourceColumn);
       
       if (!sourceColumn?.value) {
-        throw new Error('No source file found');
+        throw new Error('No source file found - please add an image to the first file column');
       }
 
       const fileValue = JSON.parse(sourceColumn.value);
@@ -229,15 +209,17 @@ function App() {
       }
       
       if (!isImageFile(file)) {
-        throw new Error('Source file is not an image');
+        throw new Error('Source file is not an image - please add a valid image file (JPEG, PNG, GIF, BMP, or WebP)');
       }
 
       // Get the file URL
+      setStatus('Getting file URL...');
       console.log('Getting file URL for asset:', file.assetId);
       const fileUrl = await getFileUrl(monday, file.assetId, file.name);
       console.log('Got file URL:', fileUrl);
       
       // Call our server endpoint to resize the image
+      setStatus('Resizing image...');
       console.log('Sending resize request to server');
       const resizeResponse = await fetch('/resize-image', {
         method: 'POST',
@@ -267,6 +249,7 @@ function App() {
       console.log('Created resized file:', resizedFile);
 
       // Create form data for the upload
+      setStatus('Uploading resized image...');
       const formData = new FormData();
       formData.append('query', `mutation($file: File!) {
         add_file_to_column(
@@ -296,6 +279,7 @@ function App() {
 
       if (uploadResult.data?.add_file_to_column?.id) {
         console.log('Successfully uploaded resized image');
+        setStatus('Successfully resized and uploaded image!');
         await fetchItemData(context.itemId, context.boardId, monday);
         setError(null);
       } else {
@@ -304,6 +288,7 @@ function App() {
     } catch (err) {
       console.error("Error during image resize:", err);
       setError('Failed to resize image: ' + err.message);
+      setStatus('Error occurred while processing image');
     } finally {
       setLoading(false);
     }
@@ -360,7 +345,10 @@ function App() {
   if (loading) {
     return (
       <div className="App">
-        <div className="loading">Loading...</div>
+        <div className="loading">
+          <h3>Loading...</h3>
+          <p>{status}</p>
+        </div>
       </div>
     );
   }
@@ -404,40 +392,29 @@ function App() {
   return (
     <div className="App">
       <header className="App-header">
-        <h1>File Copy</h1>
-        <p>Copy files between columns for this item</p>
+        <h1>Image Resizer</h1>
+        <p>Click the button below to resize your image to 800px width</p>
       </header>
       <main className="App-main">
-        <div className="column-values">
-          {itemData.item.column_values
-            .filter(col => fileColumns.some(fc => fc.id === col.column.id))
-            .map(col => (
-              <div key={col.column.id} className="column-value">
-                <h4>{col.column.title}</h4>
-                {col.value ? (
-                  <>
-                    <p className="file-name">{JSON.parse(col.value).name}</p>
-                    <div className="transfer-buttons">
-                      {fileColumns
-                        .filter(targetCol => targetCol.id !== col.column.id)
-                        .map(targetCol => (
-                          <button
-                            key={targetCol.id}
-                            onClick={() => handleFileTransfer(
-                              col.column.id,
-                              targetCol.id
-                            )}
-                          >
-                            Copy to {targetCol.title}
-                          </button>
-                        ))}
-                    </div>
-                  </>
-                ) : (
-                  <p className="no-file">No file</p>
-                )}
-              </div>
-            ))}
+        <div className="status-section">
+          <h3>Current Status</h3>
+          <p>{status || 'Ready to resize images'}</p>
+          <button 
+            onClick={handleImageResize}
+            disabled={loading}
+            className="resize-button"
+          >
+            {loading ? 'Processing...' : 'Resize Image'}
+          </button>
+        </div>
+        <div className="instructions">
+          <h3>How to use:</h3>
+          <ol>
+            <li>Add an image to the first file column</li>
+            <li>Click the "Resize Image" button</li>
+            <li>Wait for the image to be processed</li>
+            <li>Check the second file column for the resized image</li>
+          </ol>
         </div>
       </main>
     </div>
