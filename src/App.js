@@ -26,52 +26,20 @@ const getFileUrl = async (mondayInstance, assetId, fileName) => {
       throw new Error('No session token available');
     }
 
-    // Get the context
+    // For Monday.com files, we can construct the URL directly
+    // The URL format is: https://[account].monday.com/protected_static/[account_id]/resources/[asset_id]/[filename]
     const context = await mondayInstance.get('context');
-    const itemId = context.data?.itemId;
+    const accountUrl = context.data?.account?.url;
+    const accountId = context.data?.account?.id;
     
-    if (!itemId) {
-      throw new Error('No item ID available in context');
+    if (!accountUrl || !accountId) {
+      throw new Error('Missing account information');
     }
 
-    // Query the item's column values to get the file
-    const query = `query {
-      items (ids: [${itemId}]) {
-        column_values {
-          id
-          type
-          value
-          text
-        }
-      }
-    }`;
-
-    const response = await mondayInstance.api(query);
-    
-    if (!response.data?.items?.[0]) {
-      throw new Error('Failed to fetch item data');
-    }
-
-    // Find the file column value that contains our asset
-    const columnValues = response.data.items[0].column_values || [];
-    let foundFile = null;
-
-    for (const column of columnValues) {
-      if (column.type === 'file' && column.value) {
-        try {
-          const value = JSON.parse(column.value);
-          const files = value.files || [];
-          foundFile = files.find(f => f.assetId === assetId);
-          if (foundFile) {
-            return foundFile.url;
-          }
-        } catch (err) {
-          console.warn('Parse error:', err);
-        }
-      }
-    }
-
-    throw new Error('Asset not found in any column');
+    // Construct the file URL
+    const fileUrl = `https://${accountUrl}/protected_static/${accountId}/resources/${assetId}/${encodeURIComponent(fileName)}`;
+    console.log('Constructed file URL:', fileUrl);
+    return fileUrl;
   } catch (err) {
     console.error('Error getting file URL:', err);
     throw err;
@@ -223,6 +191,11 @@ function App() {
       setStatus('Getting file URL...');
       console.log('Getting file URL for asset:', file.assetId);
       const fileUrl = await getFileUrl(monday, file.assetId, file.name);
+      
+      if (!fileUrl) {
+        throw new Error('Failed to get file URL');
+      }
+      
       console.log('Got file URL:', fileUrl);
       
       // Call our server endpoint to resize the image
@@ -240,8 +213,8 @@ function App() {
       });
 
       if (!resizeResponse.ok) {
-        const errorText = await resizeResponse.text();
-        throw new Error(`Failed to resize image: ${errorText}`);
+        const errorData = await resizeResponse.json();
+        throw new Error(`Failed to resize image: ${JSON.stringify(errorData)}`);
       }
 
       // Get the resized image as a blob

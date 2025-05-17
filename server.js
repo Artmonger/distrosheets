@@ -39,9 +39,17 @@ app.post('/resize-image', async (req, res) => {
     }
 
     console.log('Downloading image from:', fileUrl);
-    // Download the image
-    const response = await fetch(fileUrl);
+    
+    // Download the image with proper headers for Monday.com's protected files
+    const response = await fetch(fileUrl, {
+      headers: {
+        'Accept': 'image/*',
+        'Cache-Control': 'no-cache'
+      }
+    });
+
     if (!response.ok) {
+      console.error('Download failed:', response.status, response.statusText);
       throw new Error(`Failed to download image: ${response.status} ${response.statusText}`);
     }
     
