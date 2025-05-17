@@ -27,13 +27,45 @@ app.use(express.json({ limit: '50mb' }));
 // Serve static files from the React app
 app.use(express.static(path.join(__dirname, 'build')));
 
+// Helper function to validate and normalize content type
+function validateContentType(contentType) {
+  if (!contentType) {
+    throw new Error('No content type provided');
+  }
+
+  // Normalize content type to lowercase and remove parameters
+  const normalizedType = contentType.toLowerCase().split(';')[0].trim();
+  
+  // List of valid image content types
+  const validTypes = [
+    'image/jpeg',
+    'image/jpg',
+    'image/png',
+    'image/gif',
+    'image/webp',
+    'image/tiff',
+    'image/bmp',
+    'application/octet-stream' // Some servers send binary data with this type
+  ];
+
+  if (!validTypes.includes(normalizedType)) {
+    console.error('Invalid content type:', normalizedType);
+    throw new Error(`Invalid content type: ${normalizedType}`);
+  }
+
+  return normalizedType;
+}
+
 // Helper function to get file from Monday.com
 async function downloadFileFromMonday(fileUrl, token) {
+  console.log('Starting file download process...');
+  
   // Initialize Monday SDK with token
   mondaySdk.setToken(token);
   
   // First try to download directly with token
   try {
+    console.log('Attempting direct download...');
     const response = await fetch(fileUrl, {
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -43,20 +75,37 @@ async function downloadFileFromMonday(fileUrl, token) {
       redirect: 'follow'
     });
 
+    console.log('Direct download response:', {
+      status: response.status,
+      statusText: response.statusText,
+      headers: Object.fromEntries(response.headers.entries())
+    });
+
     if (response.ok) {
+      // Validate content type before returning
+      const contentType = validateContentType(response.headers.get('content-type'));
+      console.log('Valid content type received:', contentType);
       return response;
     }
 
     console.log('Direct download failed, trying through Monday.com API');
     
-    // If direct download fails, try to get a signed URL through the API
+    // Extract asset ID from URL
+    const assetIdMatch = fileUrl.match(/resources\/(\d+)/);
+    if (!assetIdMatch) {
+      throw new Error('Could not extract asset ID from URL');
+    }
+    const assetId = assetIdMatch[1];
+    
+    // Get signed URL through the API
     const query = `query {
-      assets(ids: [${fileUrl.match(/resources\/(\d+)/)[1]}]) {
+      assets(ids: [${assetId}]) {
         url
         public_url
       }
     }`;
 
+    console.log('Querying Monday.com API for signed URL...');
     const result = await mondaySdk.api(query);
     console.log('API response:', result);
 
@@ -64,18 +113,32 @@ async function downloadFileFromMonday(fileUrl, token) {
       throw new Error('Failed to get signed URL from Monday.com API');
     }
 
+    const signedUrl = result.data.assets[0].url;
+    console.log('Got signed URL:', signedUrl);
+
     // Try downloading with the signed URL
-    const signedResponse = await fetch(result.data.assets[0].url, {
+    console.log('Attempting download with signed URL...');
+    const signedResponse = await fetch(signedUrl, {
       headers: {
         'Accept': 'image/*'
       }
+    });
+
+    console.log('Signed URL download response:', {
+      status: signedResponse.status,
+      statusText: signedResponse.statusText,
+      headers: Object.fromEntries(signedResponse.headers.entries())
     });
 
     if (!signedResponse.ok) {
       throw new Error(`Failed to download with signed URL: ${signedResponse.status} ${signedResponse.statusText}`);
     }
 
+    // Validate content type before returning
+    const contentType = validateContentType(signedResponse.headers.get('content-type'));
+    console.log('Valid content type received from signed URL:', contentType);
     return signedResponse;
+
   } catch (error) {
     console.error('Error downloading file:', error);
     throw error;
@@ -98,14 +161,6 @@ app.post('/resize-image', async (req, res) => {
     // Download the image using our helper function
     const response = await downloadFileFromMonday(fileUrl, token);
     
-    const contentType = response.headers.get('content-type');
-    console.log('Response content type:', contentType);
-
-    if (!contentType || !contentType.startsWith('image/')) {
-      console.error('Invalid content type:', contentType);
-      throw new Error('Invalid content type received');
-    }
-
     const buffer = await response.buffer();
     console.log('Downloaded image, size:', buffer.length, 'bytes');
 
