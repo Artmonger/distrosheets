@@ -287,7 +287,11 @@ function App() {
 
       // Create a new mutation for file upload
       const uploadMutation = `mutation($file: File!) {
-        add_file_to_column(file: $file) {
+        add_file_to_column(
+          file: $file,
+          item_id: ${context.itemId},
+          column_id: "${itemData.targetFileColumnId}"
+        ) {
           url
           id
         }
@@ -310,7 +314,7 @@ function App() {
         throw new Error('Invalid upload response: ' + JSON.stringify(uploadResponse));
       }
 
-      // Now create the mutation to link the file
+      // Now update the column value directly
       const mutation = `mutation {
         change_column_value(
           board_id: ${context.boardId}, 
