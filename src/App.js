@@ -255,7 +255,7 @@ function App() {
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
-          'Accept': 'application/octet-stream'
+          'Accept': 'image/jpeg'  // Expect JPEG response
         },
         body: JSON.stringify({
           fileUrl: fileUrl,
@@ -273,26 +273,32 @@ function App() {
       const imageWidth = resizeResponse.headers.get('X-Image-Width');
       const imageHeight = resizeResponse.headers.get('X-Image-Height');
       const originalSize = resizeResponse.headers.get('X-Original-Size');
+      const contentType = resizeResponse.headers.get('Content-Type');
 
       console.log('Got resize result:', {
         width: imageWidth,
         height: imageHeight,
         originalSize: originalSize,
-        contentLength: resizeResponse.headers.get('Content-Length')
+        contentLength: resizeResponse.headers.get('Content-Length'),
+        contentType: contentType
       });
 
-      // Get binary data directly
+      // Get binary data directly with proper content type
       const imageBlob = await resizeResponse.blob();
+      console.log('Received image blob:', {
+        size: imageBlob.size,
+        type: imageBlob.type
+      });
       
       // Generate a more descriptive filename that includes original name
       const originalName = file.name.toLowerCase();
-      const extension = 'jpg'; // Always use jpg extension since we're converting to JPEG
+      const extension = originalName.substring(originalName.lastIndexOf('.') + 1);
       const baseName = originalName.substring(0, originalName.lastIndexOf('.'));
       const newFileName = `${baseName}_resized_800px.${extension}`;
       
       // Create a File object directly from the Blob
       const fileToUpload = new File([imageBlob], newFileName, { 
-        type: 'image/jpeg',
+        type: contentType || 'image/jpeg',
         lastModified: new Date().getTime()
       });
 
