@@ -99,28 +99,29 @@ app.post('/resize-image', async (req, res) => {
         fit: sharp.fit.inside,
         withoutEnlargement: true
       })
-      .jpeg({
-        quality: 85,  // More balanced quality setting
-        chromaSubsampling: '4:2:0', // Standard chroma subsampling
-        mozjpeg: true,
-        force: false  // Let Sharp choose optimal format
+      .toFormat('jpeg', {
+        quality: 90,
+        chromaSubsampling: '4:2:0'
       })
-      .withMetadata() // Preserve image metadata
-      .toBuffer({ resolveWithObject: true });
+      .toBuffer();
 
-    // Get the final metadata from the processing result
-    const { data: processedBuffer, info: finalMetadata } = resizedBuffer;
+    // Get the final metadata
+    const finalMetadata = await sharp(resizedBuffer).metadata();
     console.log('Final image metadata:', finalMetadata);
 
     // Set proper headers for binary response
-    res.set('Content-Type', 'image/jpeg');  // Explicit content type
-    res.set('Content-Length', processedBuffer.length);
-    res.set('X-Image-Width', finalMetadata.width);
-    res.set('X-Image-Height', finalMetadata.height);
-    res.set('X-Original-Size', buffer.byteLength);
+    res.set({
+      'Content-Type': 'image/jpeg',
+      'Content-Length': resizedBuffer.length,
+      'Content-Disposition': 'attachment',
+      'Cache-Control': 'no-cache',
+      'X-Image-Width': finalMetadata.width,
+      'X-Image-Height': finalMetadata.height,
+      'X-Original-Size': buffer.byteLength
+    });
     
     // Send binary data directly
-    res.send(processedBuffer);
+    res.send(resizedBuffer);
 
   } catch (error) {
     console.error('Error processing image:', error);
