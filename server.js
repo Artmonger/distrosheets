@@ -67,7 +67,7 @@ async function downloadFileFromMonday(fileUrl, token) {
 app.post('/resize-image', async (req, res) => {
   try {
     console.log('Received resize request');
-    const { fileUrl, width, height } = req.body;
+    const { fileUrl, width, height, position } = req.body;
     const token = req.headers.authorization?.replace('Bearer ', '');
     
     if (!fileUrl || !width || !height) {
@@ -85,7 +85,12 @@ app.post('/resize-image', async (req, res) => {
       });
     }
 
+    // Validate position
+    const validPositions = ['center', 'top', 'bottom', 'left', 'right'];
+    const cropPosition = position && validPositions.includes(position) ? position : 'center';
+
     console.log('Downloading image from:', fileUrl);
+    console.log('Using crop position:', cropPosition);
     const buffer = await downloadFileFromMonday(fileUrl, token);
     console.log('Original buffer size:', buffer.byteLength);
 
@@ -98,8 +103,8 @@ app.post('/resize-image', async (req, res) => {
       .resize({
         width: parsedWidth,
         height: parsedHeight,
-        fit: sharp.fit.fill,
-        position: 'center'
+        fit: sharp.fit.cover,
+        position: cropPosition
       })
       .jpeg({
         quality: 95,

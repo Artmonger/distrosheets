@@ -8,7 +8,16 @@ function App() {
   const [error, setError] = useState(null);
   const [status, setStatus] = useState('');
   const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
+  const [cropPosition, setCropPosition] = useState('center');
   const dataFetchedRef = React.useRef({});
+
+  const cropOptions = [
+    { value: 'center', label: 'Center' },
+    { value: 'top', label: 'Top' },
+    { value: 'bottom', label: 'Bottom' },
+    { value: 'left', label: 'Left' },
+    { value: 'right', label: 'Right' }
+  ];
 
   useEffect(() => {
     let mounted = true;
@@ -271,7 +280,8 @@ function App() {
         body: JSON.stringify({
           fileUrl: fileUrl,
           width: dimensions.width.toString(),
-          height: dimensions.height.toString()
+          height: dimensions.height.toString(),
+          position: cropPosition
         })
       });
 
@@ -400,7 +410,7 @@ function App() {
     <div className="App">
       <header className="App-header">
         <h1>Image Resizer</h1>
-        <p>Enter desired dimensions and click resize</p>
+        <p>Enter desired dimensions and crop position, then click resize</p>
       </header>
       <main className="App-main">
         <div className="status-section">
@@ -430,6 +440,21 @@ function App() {
                   className="dimension-input"
                 />
               </div>
+              <div className="dimension-input-group">
+                <label htmlFor="crop-position">Crop Position</label>
+                <select
+                  id="crop-position"
+                  value={cropPosition}
+                  onChange={(e) => setCropPosition(e.target.value)}
+                  className="crop-position-select"
+                >
+                  {cropOptions.map(option => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
             <button
               onClick={handleImageResize}
@@ -445,6 +470,7 @@ function App() {
           <ol>
             <li>Add an image to the first file column</li>
             <li>Enter your desired width and height in pixels</li>
+            <li>Choose where to focus the crop (center, top, bottom, etc.)</li>
             <li>Click the "Resize Image" button</li>
             <li>Check the second file column for the resized image</li>
           </ol>
