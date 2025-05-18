@@ -86,42 +86,72 @@ app.post('/resize-image', async (req, res) => {
     console.log('Downloading image from:', fileUrl);
     const buffer = await downloadFileFromMonday(fileUrl, token);
 
+    console.log('Original buffer size:', buffer.byteLength);
+
+    // Detect input format
+    const metadata = await sharp(buffer).metadata();
+    console.log('Input image metadata:', metadata);
+
     console.log('Resizing image to width:', parsedWidth);
-    const resizedBuffer = await sharp(buffer)
-      .resize(parsedWidth, null, { 
-        fit: 'inside',
-        withoutEnlargement: true
-      })
-      .jpeg({
-        quality: 90,
-        chromaSubsampling: '4:4:4',
-        force: false
-      })
-      .png({
-        quality: 90,
-        force: false
-      })
-      .webp({
-        quality: 90,
-        force: false
-      })
-      .toBuffer({ resolveWithObject: true });
+    let resizedBuffer;
+    
+    // Process based on input format
+    if (metadata.format === 'jpeg' || metadata.format === 'jpg') {
+      resizedBuffer = await sharp(buffer)
+        .resize(parsedWidth, null, { 
+          fit: 'inside',
+          withoutEnlargement: true
+        })
+        .jpeg({
+          quality: 90,
+          chromaSubsampling: '4:4:4'
+        })
+        .toBuffer({ resolveWithObject: true });
+    } else if (metadata.format === 'png') {
+      resizedBuffer = await sharp(buffer)
+        .resize(parsedWidth, null, { 
+          fit: 'inside',
+          withoutEnlargement: true
+        })
+        .png({
+          quality: 90
+        })
+        .toBuffer({ resolveWithObject: true });
+    } else {
+      // For all other formats, convert to JPEG
+      resizedBuffer = await sharp(buffer)
+        .resize(parsedWidth, null, { 
+          fit: 'inside',
+          withoutEnlargement: true
+        })
+        .jpeg({
+          quality: 90,
+          chromaSubsampling: '4:4:4'
+        })
+        .toBuffer({ resolveWithObject: true });
+    }
 
     console.log('Image resized successfully:', {
       format: resizedBuffer.info.format,
       width: resizedBuffer.info.width,
       height: resizedBuffer.info.height,
-      size: resizedBuffer.data.length
+      size: resizedBuffer.data.length,
+      originalSize: buffer.byteLength
     });
 
+    // Convert to base64 without any truncation
+    const base64Data = Buffer.from(resizedBuffer.data).toString('base64');
+    console.log('Base64 data length:', base64Data.length);
+
     res.json({
-      data: resizedBuffer.data.toString('base64'),
+      data: base64Data,
       contentType: `image/${resizedBuffer.info.format}`,
       size: resizedBuffer.data.length,
       info: {
         width: resizedBuffer.info.width,
         height: resizedBuffer.info.height,
-        format: resizedBuffer.info.format
+        format: resizedBuffer.info.format,
+        originalSize: buffer.byteLength
       }
     });
 
