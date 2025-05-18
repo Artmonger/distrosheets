@@ -279,7 +279,17 @@ function App() {
       }
       
       const blob = new Blob([bytes], { type: resizeResult.contentType });
-      const fileToUpload = new File([blob], 'resized_image.jpg', { type: resizeResult.contentType });
+      
+      // Generate a more descriptive filename that includes original name
+      const originalName = file.name.toLowerCase();
+      const extension = originalName.split('.').pop();
+      const baseName = originalName.substring(0, originalName.lastIndexOf('.'));
+      const newFileName = `${baseName}_resized_800px.${extension}`;
+      
+      const fileToUpload = new File([blob], newFileName, { 
+        type: resizeResult.contentType,
+        lastModified: new Date().getTime()
+      });
 
       // Upload directly using Monday's SDK
       setStatus('Uploading resized image...');
@@ -323,7 +333,7 @@ function App() {
           value: ${JSON.stringify(JSON.stringify({
             files: [{
               url: uploadResponse.data.add_file_to_column.url,
-              name: fileToUpload.name
+              name: newFileName
             }]
           }))}
         ) {

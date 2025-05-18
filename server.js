@@ -89,20 +89,40 @@ app.post('/resize-image', async (req, res) => {
     console.log('Resizing image to width:', parsedWidth);
     const resizedBuffer = await sharp(buffer)
       .resize(parsedWidth, null, { 
-        fit: 'contain',
+        fit: 'inside',
         withoutEnlargement: true
       })
       .jpeg({
-        quality: 85,
-        chromaSubsampling: '4:4:4'
+        quality: 90,
+        chromaSubsampling: '4:4:4',
+        force: false
       })
-      .toBuffer();
+      .png({
+        quality: 90,
+        force: false
+      })
+      .webp({
+        quality: 90,
+        force: false
+      })
+      .toBuffer({ resolveWithObject: true });
 
-    console.log('Image resized successfully');
+    console.log('Image resized successfully:', {
+      format: resizedBuffer.info.format,
+      width: resizedBuffer.info.width,
+      height: resizedBuffer.info.height,
+      size: resizedBuffer.data.length
+    });
+
     res.json({
-      data: resizedBuffer.toString('base64'),
-      contentType: 'image/jpeg',
-      size: resizedBuffer.length
+      data: resizedBuffer.data.toString('base64'),
+      contentType: `image/${resizedBuffer.info.format}`,
+      size: resizedBuffer.data.length,
+      info: {
+        width: resizedBuffer.info.width,
+        height: resizedBuffer.info.height,
+        format: resizedBuffer.info.format
+      }
     });
 
   } catch (error) {
