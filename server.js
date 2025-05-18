@@ -106,7 +106,7 @@ app.post('/resize-image', async (req, res) => {
           quality: 90,
           chromaSubsampling: '4:4:4'
         })
-        .toBuffer({ resolveWithObject: true });
+        .toBuffer();
     } else if (metadata.format === 'png') {
       resizedBuffer = await sharp(buffer)
         .resize(parsedWidth, null, { 
@@ -116,7 +116,7 @@ app.post('/resize-image', async (req, res) => {
         .png({
           quality: 90
         })
-        .toBuffer({ resolveWithObject: true });
+        .toBuffer();
     } else {
       // For all other formats, convert to JPEG
       resizedBuffer = await sharp(buffer)
@@ -128,32 +128,32 @@ app.post('/resize-image', async (req, res) => {
           quality: 90,
           chromaSubsampling: '4:4:4'
         })
-        .toBuffer({ resolveWithObject: true });
+        .toBuffer();
     }
 
+    // Get the final metadata
+    const finalMetadata = await sharp(resizedBuffer).metadata();
+
     console.log('Image resized successfully:', {
-      format: resizedBuffer.info.format,
-      width: resizedBuffer.info.width,
-      height: resizedBuffer.info.height,
-      size: resizedBuffer.data.length,
+      format: finalMetadata.format,
+      width: finalMetadata.width,
+      height: finalMetadata.height,
+      size: resizedBuffer.length,
       originalSize: buffer.byteLength
     });
 
-    // Convert to base64 without any truncation
-    const base64Data = Buffer.from(resizedBuffer.data).toString('base64');
-    console.log('Base64 data length:', base64Data.length);
+    // Set appropriate headers for binary response
+    res.set('Content-Type', `image/${finalMetadata.format}`);
+    res.set('Content-Length', resizedBuffer.length);
+    res.set('X-Image-Info', JSON.stringify({
+      format: finalMetadata.format,
+      width: finalMetadata.width,
+      height: finalMetadata.height,
+      size: resizedBuffer.length
+    }));
 
-    res.json({
-      data: base64Data,
-      contentType: `image/${resizedBuffer.info.format}`,
-      size: resizedBuffer.data.length,
-      info: {
-        width: resizedBuffer.info.width,
-        height: resizedBuffer.info.height,
-        format: resizedBuffer.info.format,
-        originalSize: buffer.byteLength
-      }
-    });
+    // Send the binary data directly
+    res.send(resizedBuffer);
 
   } catch (error) {
     console.error('Error processing image:', error);
