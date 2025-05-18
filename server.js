@@ -98,8 +98,8 @@ app.post('/resize-image', async (req, res) => {
       .resize({
         width: parsedWidth,
         height: parsedHeight,
-        fit: sharp.fit.inside,
-        withoutEnlargement: true
+        fit: sharp.fit.fill,
+        position: 'center'
       })
       .jpeg({
         quality: 95,
