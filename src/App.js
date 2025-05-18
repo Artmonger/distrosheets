@@ -7,7 +7,17 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [status, setStatus] = useState('');
+  const [selectedDimension, setSelectedDimension] = useState('800');
   const dataFetchedRef = React.useRef({});
+
+  // Add dimensions options
+  const dimensionOptions = [
+    { value: '400', label: '400px width' },
+    { value: '800', label: '800px width' },
+    { value: '1200', label: '1200px width' },
+    { value: '1600', label: '1600px width' },
+    { value: '2000', label: '2000px width' }
+  ];
 
   useEffect(() => {
     let mounted = true;
@@ -181,6 +191,7 @@ function App() {
       setLoading(true);
       setStatus('Starting image resize process...');
       console.log('Current item data:', itemData);
+      console.log('Selected dimension:', selectedDimension);
       
       // Get the session token for authentication
       const tokenResponse = await monday.get('sessionToken');
@@ -255,11 +266,11 @@ function App() {
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
-          'Accept': 'image/jpeg'  // Expect JPEG response
+          'Accept': 'image/jpeg'
         },
         body: JSON.stringify({
           fileUrl: fileUrl,
-          width: '800'
+          width: selectedDimension
         })
       });
 
@@ -294,7 +305,7 @@ function App() {
       const originalName = file.name.toLowerCase();
       const extension = originalName.substring(originalName.lastIndexOf('.') + 1);
       const baseName = originalName.substring(0, originalName.lastIndexOf('.'));
-      const newFileName = `${baseName}_resized_800px.${extension}`;
+      const newFileName = `${baseName}_resized_${selectedDimension}px.${extension}`;
 
       try {
         setStatus('Uploading resized image...');
@@ -388,26 +399,39 @@ function App() {
     <div className="App">
       <header className="App-header">
         <h1>Image Resizer</h1>
-        <p>Click the button below to resize your image to 800px width</p>
+        <p>Select the desired width and click resize</p>
       </header>
       <main className="App-main">
         <div className="status-section">
           <h3>Current Status</h3>
           <p>{status || 'Ready to resize images'}</p>
-          <button
-            onClick={handleImageResize}
-            disabled={loading}
-            className="resize-button"
-          >
-            {loading ? 'Processing...' : 'Resize Image'}
-          </button>
+          <div className="resize-controls">
+            <select 
+              value={selectedDimension}
+              onChange={(e) => setSelectedDimension(e.target.value)}
+              className="dimension-select"
+            >
+              {dimensionOptions.map(option => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+            <button
+              onClick={handleImageResize}
+              disabled={loading}
+              className="resize-button"
+            >
+              {loading ? 'Processing...' : 'Resize Image'}
+            </button>
+          </div>
         </div>
         <div className="instructions">
           <h3>How to use:</h3>
           <ol>
             <li>Add an image to the first file column</li>
+            <li>Select the desired width from the dropdown</li>
             <li>Click the "Resize Image" button</li>
-            <li>Wait for the image to be processed</li>
             <li>Check the second file column for the resized image</li>
           </ol>
         </div>

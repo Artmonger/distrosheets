@@ -253,30 +253,50 @@ button:disabled {
   }
 }
 
-.resize-button {
-  margin-top: 15px;
-  background-color: #0073ea;
-  color: white;
-  border: none;
-  padding: 12px 24px;
-  border-radius: 6px;
+.resize-controls {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  justify-content: center;
+  margin: 20px 0;
+}
+
+.dimension-select {
+  padding: 8px 12px;
   font-size: 16px;
-  font-weight: 500;
+  border: 2px solid #dcdcdc;
+  border-radius: 4px;
+  background-color: white;
   cursor: pointer;
-  transition: all 0.2s ease;
-  width: auto;
-  min-width: 200px;
+  min-width: 150px;
+}
+
+.dimension-select:hover {
+  border-color: #c0c0c0;
+}
+
+.dimension-select:focus {
+  outline: none;
+  border-color: #0073ea;
+  box-shadow: 0 0 0 2px rgba(0, 115, 234, 0.2);
+}
+
+.resize-button {
+  padding: 8px 16px;
+  font-size: 16px;
+  color: white;
+  background-color: #0073ea;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.2s;
 }
 
 .resize-button:hover {
-  background-color: #0060b9;
-  transform: translateY(-1px);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  background-color: #0060c2;
 }
 
 .resize-button:disabled {
-  background-color: #c5c7d0;
+  background-color: #ccc;
   cursor: not-allowed;
-  transform: none;
-  box-shadow: none;
 }
