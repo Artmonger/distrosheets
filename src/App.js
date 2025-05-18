@@ -254,7 +254,8 @@ function App() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/octet-stream'
         },
         body: JSON.stringify({
           fileUrl: fileUrl,
@@ -268,23 +269,20 @@ function App() {
         throw new Error(`Failed to resize image: ${JSON.stringify(errorData)}`);
       }
 
-      const resizeResult = await resizeResponse.json();
+      // Get image metadata from headers
+      const imageWidth = resizeResponse.headers.get('X-Image-Width');
+      const imageHeight = resizeResponse.headers.get('X-Image-Height');
+      const originalSize = resizeResponse.headers.get('X-Original-Size');
+
       console.log('Got resize result:', {
-        contentType: resizeResult.contentType,
-        size: resizeResult.size,
-        info: resizeResult.info
+        width: imageWidth,
+        height: imageHeight,
+        originalSize: originalSize,
+        contentLength: resizeResponse.headers.get('Content-Length')
       });
 
-      // Convert base64 to blob
-      const byteCharacters = atob(resizeResult.data);
-      const byteNumbers = new Array(byteCharacters.length);
-      
-      for (let i = 0; i < byteCharacters.length; i++) {
-        byteNumbers[i] = byteCharacters.charCodeAt(i);
-      }
-      
-      const byteArray = new Uint8Array(byteNumbers);
-      const blob = new Blob([byteArray], { type: resizeResult.contentType });
+      // Get binary data directly
+      const imageBlob = await resizeResponse.blob();
       
       // Generate a more descriptive filename that includes original name
       const originalName = file.name.toLowerCase();
@@ -292,9 +290,9 @@ function App() {
       const baseName = originalName.substring(0, originalName.lastIndexOf('.'));
       const newFileName = `${baseName}_resized_800px.${extension}`;
       
-      // Create a File object from the blob
-      const fileToUpload = new File([blob], newFileName, { 
-        type: resizeResult.contentType,
+      // Create a File object directly from the Blob
+      const fileToUpload = new File([imageBlob], newFileName, { 
+        type: 'image/jpeg',
         lastModified: new Date().getTime()
       });
 

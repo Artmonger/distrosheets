@@ -24,8 +24,8 @@ app.use(cors({
 }));
 
 // Increase the request size limit for express
-app.use(express.json({ limit: '5mb' }));
-app.use(express.raw({ limit: '5mb' }));
+app.use(express.json({ limit: '50mb' }));
+app.use(express.raw({ type: 'application/octet-stream', limit: '50mb' }));
 
 // Serve static files from the React app
 app.use(express.static(path.join(__dirname, 'build')));
@@ -38,7 +38,7 @@ async function downloadFileFromMonday(fileUrl, token) {
     let response = await fetch(fileUrl, {
       headers: {
         'Authorization': token ? `Bearer ${token}` : '',
-        'Accept': '*/*'
+        'Accept': 'image/*'
       }
     });
 
@@ -51,7 +51,7 @@ async function downloadFileFromMonday(fileUrl, token) {
       throw new Error(`Failed to download file: ${response.status} ${response.statusText}`);
     }
 
-    const buffer = await response.arrayBuffer();
+    const buffer = await response.buffer();
     if (buffer.byteLength === 0) {
       throw new Error('Downloaded file is empty');
     }
@@ -85,15 +85,14 @@ app.post('/resize-image', async (req, res) => {
 
     console.log('Downloading image from:', fileUrl);
     const buffer = await downloadFileFromMonday(fileUrl, token);
-
     console.log('Original buffer size:', buffer.byteLength);
 
-    // Detect input format
+    // Detect input format and metadata
     const metadata = await sharp(buffer).metadata();
     console.log('Input image metadata:', metadata);
 
-    // Always convert to high-quality JPEG
-    const resizedBuffer = await sharp(buffer)
+    // Process image with high quality settings
+    const resizedBuffer = await sharp(buffer, { failOnError: false })
       .resize({
         width: parsedWidth,
         height: null,
@@ -103,7 +102,8 @@ app.post('/resize-image', async (req, res) => {
       .jpeg({
         quality: 100,
         chromaSubsampling: '4:4:4',
-        mozjpeg: true
+        mozjpeg: true,
+        force: true // Always output JPEG
       })
       .toBuffer();
 
@@ -111,18 +111,15 @@ app.post('/resize-image', async (req, res) => {
     const finalMetadata = await sharp(resizedBuffer).metadata();
     console.log('Final image metadata:', finalMetadata);
 
-    // Send as JSON with base64 data
-    res.json({
-      data: resizedBuffer.toString('base64'),
-      contentType: 'image/jpeg',
-      size: resizedBuffer.length,
-      info: {
-        width: finalMetadata.width,
-        height: finalMetadata.height,
-        format: 'jpeg',
-        originalSize: buffer.byteLength
-      }
-    });
+    // Set proper headers for binary response
+    res.set('Content-Type', 'application/octet-stream');
+    res.set('Content-Length', resizedBuffer.length);
+    res.set('X-Image-Width', finalMetadata.width);
+    res.set('X-Image-Height', finalMetadata.height);
+    res.set('X-Original-Size', buffer.byteLength);
+    
+    // Send binary data directly
+    res.send(resizedBuffer);
 
   } catch (error) {
     console.error('Error processing image:', error);
