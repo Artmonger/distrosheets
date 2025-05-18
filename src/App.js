@@ -7,17 +7,8 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [status, setStatus] = useState('');
-  const [selectedDimension, setSelectedDimension] = useState('800');
+  const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
   const dataFetchedRef = React.useRef({});
-
-  // Add dimensions options
-  const dimensionOptions = [
-    { value: '400', label: '400px width' },
-    { value: '800', label: '800px width' },
-    { value: '1200', label: '1200px width' },
-    { value: '1600', label: '1600px width' },
-    { value: '2000', label: '2000px width' }
-  ];
 
   useEffect(() => {
     let mounted = true;
@@ -180,6 +171,15 @@ function App() {
     }
   };
 
+  const handleDimensionChange = (dimension, value) => {
+    // Ensure the value is a positive number
+    const numValue = Math.max(1, parseInt(value) || 1);
+    setDimensions(prev => ({
+      ...prev,
+      [dimension]: numValue
+    }));
+  };
+
   const handleImageResize = async () => {
     const monday = window.monday;
     if (!monday) {
@@ -191,7 +191,7 @@ function App() {
       setLoading(true);
       setStatus('Starting image resize process...');
       console.log('Current item data:', itemData);
-      console.log('Selected dimension:', selectedDimension);
+      console.log('Selected dimensions:', dimensions);
       
       // Get the session token for authentication
       const tokenResponse = await monday.get('sessionToken');
@@ -270,7 +270,8 @@ function App() {
         },
         body: JSON.stringify({
           fileUrl: fileUrl,
-          width: selectedDimension
+          width: dimensions.width.toString(),
+          height: dimensions.height.toString()
         })
       });
 
@@ -305,7 +306,7 @@ function App() {
       const originalName = file.name.toLowerCase();
       const extension = originalName.substring(originalName.lastIndexOf('.') + 1);
       const baseName = originalName.substring(0, originalName.lastIndexOf('.'));
-      const newFileName = `${baseName}_resized_${selectedDimension}px.${extension}`;
+      const newFileName = `${baseName}_resized_${dimensions.width}x${dimensions.height}.${extension}`;
 
       try {
         setStatus('Uploading resized image...');
@@ -399,24 +400,37 @@ function App() {
     <div className="App">
       <header className="App-header">
         <h1>Image Resizer</h1>
-        <p>Select the desired width and click resize</p>
+        <p>Enter desired dimensions and click resize</p>
       </header>
       <main className="App-main">
         <div className="status-section">
           <h3>Current Status</h3>
           <p>{status || 'Ready to resize images'}</p>
           <div className="resize-controls">
-            <select 
-              value={selectedDimension}
-              onChange={(e) => setSelectedDimension(e.target.value)}
-              className="dimension-select"
-            >
-              {dimensionOptions.map(option => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
+            <div className="dimension-inputs">
+              <div className="dimension-input-group">
+                <label htmlFor="width">Width (px)</label>
+                <input
+                  id="width"
+                  type="number"
+                  min="1"
+                  value={dimensions.width}
+                  onChange={(e) => handleDimensionChange('width', e.target.value)}
+                  className="dimension-input"
+                />
+              </div>
+              <div className="dimension-input-group">
+                <label htmlFor="height">Height (px)</label>
+                <input
+                  id="height"
+                  type="number"
+                  min="1"
+                  value={dimensions.height}
+                  onChange={(e) => handleDimensionChange('height', e.target.value)}
+                  className="dimension-input"
+                />
+              </div>
+            </div>
             <button
               onClick={handleImageResize}
               disabled={loading}
@@ -430,7 +444,7 @@ function App() {
           <h3>How to use:</h3>
           <ol>
             <li>Add an image to the first file column</li>
-            <li>Select the desired width from the dropdown</li>
+            <li>Enter your desired width and height in pixels</li>
             <li>Click the "Resize Image" button</li>
             <li>Check the second file column for the resized image</li>
           </ol>

@@ -255,30 +255,58 @@ button:disabled {
 
 .resize-controls {
   display: flex;
-  gap: 10px;
-  align-items: center;
+  gap: 20px;
+  align-items: flex-end;
   justify-content: center;
   margin: 20px 0;
 }
 
-.dimension-select {
+.dimension-inputs {
+  display: flex;
+  gap: 15px;
+}
+
+.dimension-input-group {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+.dimension-input-group label {
+  font-size: 14px;
+  color: #676879;
+  font-weight: 500;
+}
+
+.dimension-input {
+  width: 100px;
   padding: 8px 12px;
   font-size: 16px;
   border: 2px solid #dcdcdc;
   border-radius: 4px;
   background-color: white;
-  cursor: pointer;
-  min-width: 150px;
 }
 
-.dimension-select:hover {
+.dimension-input:hover {
   border-color: #c0c0c0;
 }
 
-.dimension-select:focus {
+.dimension-input:focus {
   outline: none;
   border-color: #0073ea;
   box-shadow: 0 0 0 2px rgba(0, 115, 234, 0.2);
+}
+
+/* Hide number input spinners */
+.dimension-input::-webkit-outer-spin-button,
+.dimension-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.dimension-input[type=number] {
+  -moz-appearance: textfield;
 }
 
 .resize-button {
@@ -290,6 +318,7 @@ button:disabled {
   border-radius: 4px;
   cursor: pointer;
   transition: background-color 0.2s;
+  height: 41px; /* Match input height */
 }
 
 .resize-button:hover {

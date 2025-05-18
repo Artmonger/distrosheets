@@ -67,19 +67,21 @@ async function downloadFileFromMonday(fileUrl, token) {
 app.post('/resize-image', async (req, res) => {
   try {
     console.log('Received resize request');
-    const { fileUrl, width } = req.body;
+    const { fileUrl, width, height } = req.body;
     const token = req.headers.authorization?.replace('Bearer ', '');
     
-    if (!fileUrl || !width) {
+    if (!fileUrl || !width || !height) {
       return res.status(400).json({ 
         error: 'Missing required parameters'
       });
     }
 
     const parsedWidth = parseInt(width);
-    if (isNaN(parsedWidth) || parsedWidth < 1 || parsedWidth > 5000) {
+    const parsedHeight = parseInt(height);
+    if (isNaN(parsedWidth) || parsedWidth < 1 || parsedWidth > 5000 ||
+        isNaN(parsedHeight) || parsedHeight < 1 || parsedHeight > 5000) {
       return res.status(400).json({ 
-        error: 'Invalid width parameter'
+        error: 'Invalid dimensions. Width and height must be between 1 and 5000 pixels.'
       });
     }
 
@@ -95,7 +97,7 @@ app.post('/resize-image', async (req, res) => {
     const resizedBuffer = await sharp(buffer, { failOnError: false })
       .resize({
         width: parsedWidth,
-        height: null,
+        height: parsedHeight,
         fit: sharp.fit.inside,
         withoutEnlargement: true
       })
