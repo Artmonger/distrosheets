@@ -268,26 +268,33 @@ function App() {
         throw new Error(`Failed to resize image: ${JSON.stringify(errorData)}`);
       }
 
-      // Get image info from headers
-      const imageInfo = JSON.parse(resizeResponse.headers.get('X-Image-Info'));
-      console.log('Image info:', imageInfo);
-
-      // Get the binary data
-      const imageBlob = await resizeResponse.blob();
-      console.log('Received image blob:', {
-        size: imageBlob.size,
-        type: imageBlob.type
+      const resizeResult = await resizeResponse.json();
+      console.log('Got resize result:', {
+        contentType: resizeResult.contentType,
+        size: resizeResult.size,
+        info: resizeResult.info
       });
+
+      // Convert base64 to blob
+      const byteCharacters = atob(resizeResult.data);
+      const byteNumbers = new Array(byteCharacters.length);
+      
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i);
+      }
+      
+      const byteArray = new Uint8Array(byteNumbers);
+      const blob = new Blob([byteArray], { type: resizeResult.contentType });
       
       // Generate a more descriptive filename that includes original name
       const originalName = file.name.toLowerCase();
-      const extension = originalName.split('.').pop();
+      const extension = 'jpg'; // Always use jpg extension since we're converting to JPEG
       const baseName = originalName.substring(0, originalName.lastIndexOf('.'));
       const newFileName = `${baseName}_resized_800px.${extension}`;
       
-      // Create a File object directly from the blob
-      const fileToUpload = new File([imageBlob], newFileName, { 
-        type: imageBlob.type,
+      // Create a File object from the blob
+      const fileToUpload = new File([blob], newFileName, { 
+        type: resizeResult.contentType,
         lastModified: new Date().getTime()
       });
 

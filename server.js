@@ -92,68 +92,37 @@ app.post('/resize-image', async (req, res) => {
     const metadata = await sharp(buffer).metadata();
     console.log('Input image metadata:', metadata);
 
-    console.log('Resizing image to width:', parsedWidth);
-    let resizedBuffer;
-    
-    // Process based on input format
-    if (metadata.format === 'jpeg' || metadata.format === 'jpg') {
-      resizedBuffer = await sharp(buffer)
-        .resize(parsedWidth, null, { 
-          fit: 'inside',
-          withoutEnlargement: true
-        })
-        .jpeg({
-          quality: 90,
-          chromaSubsampling: '4:4:4'
-        })
-        .toBuffer();
-    } else if (metadata.format === 'png') {
-      resizedBuffer = await sharp(buffer)
-        .resize(parsedWidth, null, { 
-          fit: 'inside',
-          withoutEnlargement: true
-        })
-        .png({
-          quality: 90
-        })
-        .toBuffer();
-    } else {
-      // For all other formats, convert to JPEG
-      resizedBuffer = await sharp(buffer)
-        .resize(parsedWidth, null, { 
-          fit: 'inside',
-          withoutEnlargement: true
-        })
-        .jpeg({
-          quality: 90,
-          chromaSubsampling: '4:4:4'
-        })
-        .toBuffer();
-    }
+    // Always convert to high-quality JPEG
+    const resizedBuffer = await sharp(buffer)
+      .resize({
+        width: parsedWidth,
+        height: null,
+        fit: sharp.fit.inside,
+        withoutEnlargement: true
+      })
+      .jpeg({
+        quality: 100,
+        chromaSubsampling: '4:4:4',
+        mozjpeg: true
+      })
+      .toBuffer();
 
     // Get the final metadata
     const finalMetadata = await sharp(resizedBuffer).metadata();
+    console.log('Final image metadata:', finalMetadata);
 
-    console.log('Image resized successfully:', {
-      format: finalMetadata.format,
-      width: finalMetadata.width,
-      height: finalMetadata.height,
+    // Send as JSON with base64 data
+    res.json({
+      data: resizedBuffer.toString('base64'),
+      contentType: 'image/jpeg',
       size: resizedBuffer.length,
-      originalSize: buffer.byteLength
+      info: {
+        width: finalMetadata.width,
+        height: finalMetadata.height,
+        format: 'jpeg',
+        originalSize: buffer.byteLength
+      }
     });
-
-    // Set appropriate headers for binary response
-    res.set('Content-Type', `image/${finalMetadata.format}`);
-    res.set('Content-Length', resizedBuffer.length);
-    res.set('X-Image-Info', JSON.stringify({
-      format: finalMetadata.format,
-      width: finalMetadata.width,
-      height: finalMetadata.height,
-      size: resizedBuffer.length
-    }));
-
-    // Send the binary data directly
-    res.send(resizedBuffer);
 
   } catch (error) {
     console.error('Error processing image:', error);
