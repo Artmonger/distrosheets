@@ -295,64 +295,51 @@ function App() {
       const extension = originalName.substring(originalName.lastIndexOf('.') + 1);
       const baseName = originalName.substring(0, originalName.lastIndexOf('.'));
       const newFileName = `${baseName}_resized_800px.${extension}`;
-      
-      // Create a File object from the blob
-      const fileToUpload = new File([imageBlob], newFileName, { 
-        type: 'image/jpeg',
-        lastModified: new Date().getTime()
-      });
-
-      // Create FormData for the upload
-      const formData = new FormData();
-      formData.append('file', fileToUpload);
-
-      // Upload directly using Monday's SDK
-      setStatus('Uploading resized image...');
-      console.log('Starting upload via Monday SDK', {
-        fileName: newFileName,
-        fileSize: fileToUpload.size,
-        fileType: fileToUpload.type
-      });
 
       try {
-        // Create a new mutation for file upload
-        const uploadMutation = `mutation($file: File!) {
-          add_file_to_column(
-            file: $file,
-            item_id: ${context.itemId},
-            column_id: "${itemData.targetFileColumnId}"
-          ) {
-            url
-            id
+        setStatus('Uploading resized image...');
+        
+        // First, get a signed URL for upload
+        const getUploadUrlMutation = `mutation {
+          add_file_to_column(item_id: ${context.itemId}, column_id: "${itemData.targetFileColumnId}") {
+            signed_url
           }
         }`;
+        
+        const uploadUrlResponse = await monday.api(getUploadUrlMutation);
+        console.log('Got signed URL response:', uploadUrlResponse);
 
-        // Use the SDK's built-in file upload method
-        const uploadResponse = await monday.api(uploadMutation, {
-          variables: {
-            file: fileToUpload
-          }
+        if (!uploadUrlResponse.data?.add_file_to_column?.signed_url) {
+          throw new Error('Failed to get upload URL');
+        }
+
+        const signedUrl = uploadUrlResponse.data.add_file_to_column.signed_url;
+
+        // Upload the file directly to S3
+        const uploadResponse = await fetch(signedUrl, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'image/jpeg'
+          },
+          body: imageBlob
         });
 
-        console.log('Upload response:', uploadResponse);
-
-        if (uploadResponse.errors) {
-          throw new Error('Upload failed: ' + JSON.stringify(uploadResponse.errors));
+        if (!uploadResponse.ok) {
+          throw new Error('Failed to upload file to S3');
         }
 
-        if (!uploadResponse.data?.add_file_to_column?.url) {
-          throw new Error('Invalid upload response: ' + JSON.stringify(uploadResponse));
-        }
+        console.log('Successfully uploaded file to S3');
 
-        // Now update the column value directly
-        const mutation = `mutation {
+        // Now update the column value
+        const s3Url = signedUrl.split('?')[0];
+        const updateColumnMutation = `mutation {
           change_column_value(
-            board_id: ${context.boardId}, 
-            item_id: ${context.itemId}, 
-            column_id: "${itemData.targetFileColumnId}", 
+            board_id: ${context.boardId},
+            item_id: ${context.itemId},
+            column_id: "${itemData.targetFileColumnId}",
             value: ${JSON.stringify(JSON.stringify({
               files: [{
-                url: uploadResponse.data.add_file_to_column.url,
+                url: s3Url,
                 name: newFileName
               }]
             }))}
@@ -361,22 +348,22 @@ function App() {
           }
         }`;
 
-        // Link the file to the column
-        console.log('Linking file to column with mutation:', mutation);
-        const linkResult = await monday.api(mutation);
-        console.log("Link response:", linkResult);
+        const linkResult = await monday.api(updateColumnMutation);
+        console.log('Column update response:', linkResult);
 
         if (linkResult.data?.change_column_value?.id) {
-          console.log('Successfully uploaded and linked resized image');
+          console.log('Successfully linked resized image');
           setStatus('Successfully resized and uploaded image!');
           await fetchItemData(context.boardId, context.itemId);
           setError(null);
         } else {
-          throw new Error('Failed to link file to column: ' + JSON.stringify(linkResult.errors || linkResult));
+          throw new Error('Failed to link file to column');
         }
+
       } catch (err) {
         console.error('Error during file upload:', err);
-        throw new Error('Failed to upload file: ' + err.message);
+        setError('Failed to upload file: ' + err.message);
+        setStatus('Error occurred while uploading image');
       }
 
     } catch (err) {

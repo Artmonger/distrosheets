@@ -99,15 +99,26 @@ app.post('/resize-image', async (req, res) => {
         fit: sharp.fit.inside,
         withoutEnlargement: true
       })
-      .toFormat('jpeg', {
-        quality: 90,
-        chromaSubsampling: '4:2:0'
+      .jpeg({
+        quality: 95,
+        chromaSubsampling: '4:4:4',
+        mozjpeg: true
       })
+      .withMetadata()
       .toBuffer();
 
     // Get the final metadata
     const finalMetadata = await sharp(resizedBuffer).metadata();
-    console.log('Final image metadata:', finalMetadata);
+    console.log('Final image metadata:', {
+      format: finalMetadata.format,
+      width: finalMetadata.width,
+      height: finalMetadata.height,
+      space: finalMetadata.space,
+      channels: finalMetadata.channels,
+      depth: finalMetadata.depth,
+      density: finalMetadata.density,
+      size: resizedBuffer.length
+    });
 
     // Set proper headers for binary response
     res.set({
