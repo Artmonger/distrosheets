@@ -95,8 +95,7 @@ app.post('/resize-image', async (req, res) => {
     const resizedBuffer = await sharp(buffer, { failOnError: false })
       .resize({
         width: parsedWidth,
-        height: null, // Auto height to maintain aspect ratio
-        withoutEnlargement: true
+        height: null // Auto height to maintain aspect ratio
       })
       .jpeg({
         quality: 95,
