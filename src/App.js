@@ -386,6 +386,11 @@ function App() {
           setStatus('Successfully resized and uploaded image!');
           await fetchItemData(context.boardId, context.itemId);
           setError(null);
+
+          // Track first value created event for Monday.com
+          if (window.monday && window.monday.execute) {
+            window.monday.execute('valueCreatedForUser');
+          }
         } else {
           throw new Error('Failed to upload file');
         }
