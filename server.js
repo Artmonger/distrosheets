@@ -67,7 +67,7 @@ async function downloadFileFromMonday(fileUrl, token) {
 app.post('/resize-image', async (req, res) => {
   try {
     console.log('Received resize request');
-    const { fileUrl, width, height, resizeMode, squareMode, padColor } = req.body;
+    const { fileUrl, width, height, resizeMode, squareMode, padColor, cropPosition } = req.body;
     const token = req.headers.authorization?.replace('Bearer ', '');
     
     if (!fileUrl || !width || !height) {
@@ -90,7 +90,8 @@ app.post('/resize-image', async (req, res) => {
       height: parsedHeight,
       resizeMode,
       squareMode,
-      padColor 
+      padColor,
+      cropPosition
     });
     console.log('Downloading image from:', fileUrl);
     const buffer = await downloadFileFromMonday(fileUrl, token);
@@ -109,7 +110,7 @@ app.post('/resize-image', async (req, res) => {
         pipeline = pipeline
           .resize(parsedWidth, parsedWidth, {
             fit: 'cover',
-            position: 'center'
+            position: cropPosition || 'center'
           });
       } else {
         // Pad to square

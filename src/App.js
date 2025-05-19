@@ -14,6 +14,7 @@ function App() {
   const [resizeMode, setResizeMode] = useState('square'); // 'square' or 'custom'
   const [squareMode, setSquareMode] = useState('crop'); // 'crop' or 'pad'
   const [padColor, setPadColor] = useState('white'); // 'white' or 'transparent'
+  const [cropPosition, setCropPosition] = useState('center'); // 'center', 'top', 'bottom'
   const dataFetchedRef = React.useRef({});
 
   const handleWidthChange = (value) => {
@@ -327,7 +328,8 @@ function App() {
           height: numHeight.toString(),
           resizeMode,
           squareMode,
-          padColor
+          padColor,
+          cropPosition
         })
       });
 
@@ -362,7 +364,7 @@ function App() {
       const originalName = file.name.toLowerCase();
       const extension = originalName.substring(originalName.lastIndexOf('.') + 1);
       const baseName = originalName.substring(0, originalName.lastIndexOf('.'));
-      const dimensionsText = resizeMode === 'square' ? `${width}px_${squareMode}` : `${width}x${height}`;
+      const dimensionsText = resizeMode === 'square' ? `${width}px_${squareMode}_${cropPosition}` : `${width}x${height}`;
       const newFileName = `${baseName}_${dimensionsText}.${extension}`;
 
       try {
@@ -566,6 +568,21 @@ function App() {
                   >
                     <option value="white">White</option>
                     <option value="transparent">Transparent</option>
+                  </select>
+                </div>
+              )}
+              {resizeMode === 'square' && squareMode === 'crop' && (
+                <div className="mode-input-group">
+                  <label htmlFor="crop-position">Crop Position</label>
+                  <select
+                    id="crop-position"
+                    value={cropPosition}
+                    onChange={(e) => setCropPosition(e.target.value)}
+                    className="mode-select"
+                  >
+                    <option value="center">Center</option>
+                    <option value="top">Top</option>
+                    <option value="bottom">Bottom</option>
                   </select>
                 </div>
               )}
