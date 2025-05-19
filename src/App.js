@@ -7,21 +7,23 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [status, setStatus] = useState('');
-  const [width, setWidth] = useState(800);
+  const [size, setSize] = useState(800);
   const [sourceColumnId, setSourceColumnId] = useState(null);
   const [targetColumnId, setTargetColumnId] = useState(null);
+  const [squareMode, setSquareMode] = useState('crop'); // 'crop' or 'pad'
+  const [padColor, setPadColor] = useState('white'); // 'white' or 'transparent'
   const dataFetchedRef = React.useRef({});
 
-  const handleWidthChange = (value) => {
+  const handleSizeChange = (value) => {
     // Allow empty string for typing
     if (value === '') {
-      setWidth('');
+      setSize('');
       return;
     }
     // Parse the value and ensure it's a positive number
     const numValue = parseInt(value);
     if (!isNaN(numValue)) {
-      setWidth(Math.max(1, numValue));
+      setSize(Math.max(1, numValue));
     }
   };
 
@@ -197,18 +199,20 @@ function App() {
       return;
     }
 
-    // Validate width before processing
-    const numWidth = parseInt(width);
-    if (!numWidth || numWidth < 1) {
-      setError('Please enter a valid width (minimum 1 pixel)');
+    // Validate size before processing
+    const numSize = parseInt(size);
+    if (!numSize || numSize < 1) {
+      setError('Please enter a valid size (minimum 1 pixel)');
       return;
     }
 
     try {
       setLoading(true);
-      setStatus('Starting image resize process...');
+      setStatus('Starting image square process...');
       console.log('Current item data:', itemData);
-      console.log('Selected width:', numWidth);
+      console.log('Selected size:', numSize);
+      console.log('Square mode:', squareMode);
+      console.log('Pad color:', padColor);
       console.log('Selected columns:', { source: sourceColumnId, target: targetColumnId });
       
       // Get the session token for authentication
@@ -288,7 +292,9 @@ function App() {
         },
         body: JSON.stringify({
           fileUrl: fileUrl,
-          width: numWidth.toString()
+          size: numSize.toString(),
+          squareMode,
+          padColor
         })
       });
 
@@ -323,7 +329,8 @@ function App() {
       const originalName = file.name.toLowerCase();
       const extension = originalName.substring(originalName.lastIndexOf('.') + 1);
       const baseName = originalName.substring(0, originalName.lastIndexOf('.'));
-      const newFileName = `${baseName}_resized_${numWidth}px.${extension}`;
+      const modeText = squareMode === 'crop' ? 'cropped' : `padded_${padColor}`;
+      const newFileName = `${baseName}_squared_${numSize}px_${modeText}.${extension}`;
 
       try {
         setStatus('Uploading resized image...');
@@ -416,8 +423,8 @@ function App() {
   return (
     <div className="App">
       <header className="App-header">
-        <h1>Image Resizer</h1>
-        <p>Resize your images with ease</p>
+        <h1>Image Squarer</h1>
+        <p>Make your images perfectly square</p>
       </header>
       <main className="App-main">
         <div className="status-section">
@@ -461,23 +468,49 @@ function App() {
                 </select>
               </div>
               <div className="dimension-input-group">
-                <label htmlFor="width">Width (px)</label>
+                <label htmlFor="size">Square Size (px)</label>
                 <input
-                  id="width"
+                  id="size"
                   type="number"
                   min="1"
-                  value={width}
-                  onChange={(e) => handleWidthChange(e.target.value)}
+                  value={size}
+                  onChange={(e) => handleSizeChange(e.target.value)}
                   className="dimension-input"
                 />
               </div>
+              <div className="mode-input-group">
+                <label htmlFor="square-mode">Square Method</label>
+                <select
+                  id="square-mode"
+                  value={squareMode}
+                  onChange={(e) => setSquareMode(e.target.value)}
+                  className="mode-select"
+                >
+                  <option value="crop">Crop to Square</option>
+                  <option value="pad">Add Padding</option>
+                </select>
+              </div>
+              {squareMode === 'pad' && (
+                <div className="mode-input-group">
+                  <label htmlFor="pad-color">Padding Color</label>
+                  <select
+                    id="pad-color"
+                    value={padColor}
+                    onChange={(e) => setPadColor(e.target.value)}
+                    className="mode-select"
+                  >
+                    <option value="white">White</option>
+                    <option value="transparent">Transparent</option>
+                  </select>
+                </div>
+              )}
             </div>
             <button
               onClick={handleImageResize}
               disabled={loading || !sourceColumnId || !targetColumnId}
               className="resize-button"
             >
-              {loading ? 'Processing...' : 'Resize Image'}
+              {loading ? 'Processing...' : 'Make Square'}
             </button>
           </div>
         </div>
@@ -485,10 +518,16 @@ function App() {
           <h3>How to use:</h3>
           <ol>
             <li>Select the source column containing your original image</li>
-            <li>Select the target column where the resized image will be saved</li>
-            <li>Enter the desired width in pixels</li>
-            <li>Click the "Resize Image" button</li>
-            <li>Check the target column for your resized image</li>
+            <li>Select the target column where the squared image will be saved</li>
+            <li>Enter the desired square size in pixels</li>
+            <li>Choose how to make it square:
+              <ul>
+                <li><strong>Crop to Square:</strong> Centers and crops the image</li>
+                <li><strong>Add Padding:</strong> Adds white or transparent borders</li>
+              </ul>
+            </li>
+            <li>Click the "Make Square" button</li>
+            <li>Check the target column for your squared image</li>
           </ol>
         </div>
       </main>

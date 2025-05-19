@@ -67,22 +67,23 @@ async function downloadFileFromMonday(fileUrl, token) {
 app.post('/resize-image', async (req, res) => {
   try {
     console.log('Received resize request');
-    const { fileUrl, width } = req.body;
+    const { fileUrl, size, squareMode, padColor } = req.body;
     const token = req.headers.authorization?.replace('Bearer ', '');
     
-    if (!fileUrl || !width) {
+    if (!fileUrl || !size) {
       return res.status(400).json({ 
         error: 'Missing required parameters'
       });
     }
 
-    const parsedWidth = parseInt(width);
-    if (isNaN(parsedWidth) || parsedWidth < 1 || parsedWidth > 5000) {
+    const parsedSize = parseInt(size);
+    if (isNaN(parsedSize) || parsedSize < 1 || parsedSize > 5000) {
       return res.status(400).json({ 
-        error: 'Invalid width. Width must be between 1 and 5000 pixels.'
+        error: 'Invalid size. Size must be between 1 and 5000 pixels.'
       });
     }
 
+    console.log('Processing image with settings:', { size: parsedSize, squareMode, padColor });
     console.log('Downloading image from:', fileUrl);
     const buffer = await downloadFileFromMonday(fileUrl, token);
     console.log('Original buffer size:', buffer.byteLength);
@@ -91,17 +92,46 @@ app.post('/resize-image', async (req, res) => {
     const metadata = await sharp(buffer).metadata();
     console.log('Input image metadata:', metadata);
 
-    // Process image with high quality settings
-    const resizedBuffer = await sharp(buffer, { failOnError: false })
-      .resize({
-        width: parsedWidth,
-        height: null // Auto height to maintain aspect ratio
-      })
-      .jpeg({
-        quality: 95,
-        chromaSubsampling: '4:4:4',
-        mozjpeg: true
-      })
+    // Initialize sharp pipeline
+    let pipeline = sharp(buffer, { failOnError: false });
+
+    if (squareMode === 'crop') {
+      // Crop to square and resize
+      pipeline = pipeline
+        .resize(parsedSize, parsedSize, {
+          fit: 'cover',
+          position: 'center'
+        });
+    } else {
+      // Pad to square
+      // First resize to fit within the square while maintaining aspect ratio
+      pipeline = pipeline
+        .resize(parsedSize, parsedSize, {
+          fit: 'contain',
+          background: padColor === 'transparent' ? { r: 0, g: 0, b: 0, alpha: 0 } : { r: 255, g: 255, b: 255, alpha: 1 }
+        });
+    }
+
+    // Apply high quality settings
+    if (padColor === 'transparent') {
+      // Use PNG for transparent backgrounds
+      pipeline = pipeline
+        .png({
+          quality: 100,
+          compressionLevel: 9
+        });
+    } else {
+      // Use JPEG for white backgrounds
+      pipeline = pipeline
+        .jpeg({
+          quality: 95,
+          chromaSubsampling: '4:4:4',
+          mozjpeg: true
+        });
+    }
+
+    // Generate final image
+    const resizedBuffer = await pipeline
       .withMetadata()
       .toBuffer();
 
@@ -120,7 +150,7 @@ app.post('/resize-image', async (req, res) => {
 
     // Set proper headers for binary response
     res.set({
-      'Content-Type': 'image/jpeg',
+      'Content-Type': padColor === 'transparent' ? 'image/png' : 'image/jpeg',
       'Content-Length': resizedBuffer.length,
       'Content-Disposition': 'attachment',
       'Cache-Control': 'no-cache',
