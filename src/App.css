@@ -16,20 +16,24 @@
 }
 
 .App-header {
-  background-color: #ffffff;
+  background: rgba(34, 36, 49, 0.95); /* dark, nearly transparent */
   padding: 20px;
-  border-bottom: 1px solid #e6e9ef;
+  border-bottom: 1px solid #23243a;
   margin-bottom: 20px;
+  border-radius: 8px 8px 0 0;
+}
+
+.App-header h1,
+.App-header p {
+  color: #fff;
 }
 
 .App-header h1 {
   margin: 0;
-  color: #323338;
   font-size: 24px;
 }
 
 .App-header p {
-  color: #676879;
   margin: 10px 0 0;
   font-size: 14px;
 }
@@ -258,18 +262,24 @@ button:disabled {
   max-width: 400px;
 }
 
-.column-select-group {
-  display: flex;
-  flex-direction: column;
+.column-select-group,
+.mode-input-group,
+.dimension-input-group {
   align-items: center;
-  gap: 4px;
-  width: 100%;
 }
 
 .column-select-group label {
   font-size: 14px;
   color: #676879;
   font-weight: 500;
+}
+
+.column-select,
+.mode-select,
+.dimension-input {
+  margin-left: auto;
+  margin-right: auto;
+  display: block;
 }
 
 .column-select {
@@ -288,13 +298,6 @@ button:disabled {
   background-size: 10px auto;
 }
 
-.dimension-input-group {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  width: 100%;
-}
-
 .dimension-input-group label {
   font-size: 14px;
   color: #676879;
@@ -309,13 +312,6 @@ button:disabled {
   border: 2px solid #dcdcdc;
   border-radius: 4px;
   background-color: white;
-}
-
-.mode-input-group {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  width: 100%;
 }
 
 .mode-input-group label {
@@ -351,6 +347,9 @@ button:disabled {
   font-weight: 500;
   cursor: pointer;
   transition: background-color 0.2s;
+  margin-left: auto;
+  margin-right: auto;
+  display: block;
 }
 
 .resize-button:hover:not(:disabled) {
