@@ -7,17 +7,14 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [status, setStatus] = useState('');
-  const [dimensions, setDimensions] = useState({ width: 800, height: 600 });
-  const [cropPosition, setCropPosition] = useState('center');
+  const [width, setWidth] = useState(800);
   const dataFetchedRef = React.useRef({});
 
-  const cropOptions = [
-    { value: 'center', label: 'Center' },
-    { value: 'top', label: 'Top' },
-    { value: 'bottom', label: 'Bottom' },
-    { value: 'left', label: 'Left' },
-    { value: 'right', label: 'Right' }
-  ];
+  const handleWidthChange = (value) => {
+    // Ensure the value is a positive number
+    const numValue = Math.max(1, parseInt(value) || 1);
+    setWidth(numValue);
+  };
 
   useEffect(() => {
     let mounted = true;
@@ -180,15 +177,6 @@ function App() {
     }
   };
 
-  const handleDimensionChange = (dimension, value) => {
-    // Ensure the value is a positive number
-    const numValue = Math.max(1, parseInt(value) || 1);
-    setDimensions(prev => ({
-      ...prev,
-      [dimension]: numValue
-    }));
-  };
-
   const handleImageResize = async () => {
     const monday = window.monday;
     if (!monday) {
@@ -200,7 +188,7 @@ function App() {
       setLoading(true);
       setStatus('Starting image resize process...');
       console.log('Current item data:', itemData);
-      console.log('Selected dimensions:', dimensions);
+      console.log('Selected width:', width);
       
       // Get the session token for authentication
       const tokenResponse = await monday.get('sessionToken');
@@ -279,9 +267,7 @@ function App() {
         },
         body: JSON.stringify({
           fileUrl: fileUrl,
-          width: dimensions.width.toString(),
-          height: dimensions.height.toString(),
-          position: cropPosition
+          width: width.toString()
         })
       });
 
@@ -316,7 +302,7 @@ function App() {
       const originalName = file.name.toLowerCase();
       const extension = originalName.substring(originalName.lastIndexOf('.') + 1);
       const baseName = originalName.substring(0, originalName.lastIndexOf('.'));
-      const newFileName = `${baseName}_resized_${dimensions.width}x${dimensions.height}.${extension}`;
+      const newFileName = `${baseName}_resized_${width}px.${extension}`;
 
       try {
         setStatus('Uploading resized image...');
@@ -410,7 +396,7 @@ function App() {
     <div className="App">
       <header className="App-header">
         <h1>Image Resizer</h1>
-        <p>Enter desired dimensions and crop position, then click resize</p>
+        <p>Enter desired width and click resize</p>
       </header>
       <main className="App-main">
         <div className="status-section">
@@ -424,36 +410,10 @@ function App() {
                   id="width"
                   type="number"
                   min="1"
-                  value={dimensions.width}
-                  onChange={(e) => handleDimensionChange('width', e.target.value)}
+                  value={width}
+                  onChange={(e) => handleWidthChange(e.target.value)}
                   className="dimension-input"
                 />
-              </div>
-              <div className="dimension-input-group">
-                <label htmlFor="height">Height (px)</label>
-                <input
-                  id="height"
-                  type="number"
-                  min="1"
-                  value={dimensions.height}
-                  onChange={(e) => handleDimensionChange('height', e.target.value)}
-                  className="dimension-input"
-                />
-              </div>
-              <div className="dimension-input-group">
-                <label htmlFor="crop-position">Crop Position</label>
-                <select
-                  id="crop-position"
-                  value={cropPosition}
-                  onChange={(e) => setCropPosition(e.target.value)}
-                  className="crop-position-select"
-                >
-                  {cropOptions.map(option => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
               </div>
             </div>
             <button
@@ -469,8 +429,7 @@ function App() {
           <h3>How to use:</h3>
           <ol>
             <li>Add an image to the first file column</li>
-            <li>Enter your desired width and height in pixels</li>
-            <li>Choose where to focus the crop (center, top, bottom, etc.)</li>
+            <li>Enter your desired width in pixels</li>
             <li>Click the "Resize Image" button</li>
             <li>Check the second file column for the resized image</li>
           </ol>

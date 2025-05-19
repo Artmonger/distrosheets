@@ -67,30 +67,23 @@ async function downloadFileFromMonday(fileUrl, token) {
 app.post('/resize-image', async (req, res) => {
   try {
     console.log('Received resize request');
-    const { fileUrl, width, height, position } = req.body;
+    const { fileUrl, width } = req.body;
     const token = req.headers.authorization?.replace('Bearer ', '');
     
-    if (!fileUrl || !width || !height) {
+    if (!fileUrl || !width) {
       return res.status(400).json({ 
         error: 'Missing required parameters'
       });
     }
 
     const parsedWidth = parseInt(width);
-    const parsedHeight = parseInt(height);
-    if (isNaN(parsedWidth) || parsedWidth < 1 || parsedWidth > 5000 ||
-        isNaN(parsedHeight) || parsedHeight < 1 || parsedHeight > 5000) {
+    if (isNaN(parsedWidth) || parsedWidth < 1 || parsedWidth > 5000) {
       return res.status(400).json({ 
-        error: 'Invalid dimensions. Width and height must be between 1 and 5000 pixels.'
+        error: 'Invalid width. Width must be between 1 and 5000 pixels.'
       });
     }
 
-    // Validate position
-    const validPositions = ['center', 'top', 'bottom', 'left', 'right'];
-    const cropPosition = position && validPositions.includes(position) ? position : 'center';
-
     console.log('Downloading image from:', fileUrl);
-    console.log('Using crop position:', cropPosition);
     const buffer = await downloadFileFromMonday(fileUrl, token);
     console.log('Original buffer size:', buffer.byteLength);
 
@@ -102,9 +95,8 @@ app.post('/resize-image', async (req, res) => {
     const resizedBuffer = await sharp(buffer, { failOnError: false })
       .resize({
         width: parsedWidth,
-        height: parsedHeight,
-        fit: sharp.fit.cover,
-        position: cropPosition
+        height: null, // Auto height to maintain aspect ratio
+        withoutEnlargement: true
       })
       .jpeg({
         quality: 95,
