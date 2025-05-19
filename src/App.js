@@ -13,9 +13,16 @@ function App() {
   const dataFetchedRef = React.useRef({});
 
   const handleWidthChange = (value) => {
-    // Ensure the value is a positive number
-    const numValue = Math.max(1, parseInt(value) || 1);
-    setWidth(numValue);
+    // Allow empty string for typing
+    if (value === '') {
+      setWidth('');
+      return;
+    }
+    // Parse the value and ensure it's a positive number
+    const numValue = parseInt(value);
+    if (!isNaN(numValue)) {
+      setWidth(Math.max(1, numValue));
+    }
   };
 
   useEffect(() => {
@@ -190,11 +197,18 @@ function App() {
       return;
     }
 
+    // Validate width before processing
+    const numWidth = parseInt(width);
+    if (!numWidth || numWidth < 1) {
+      setError('Please enter a valid width (minimum 1 pixel)');
+      return;
+    }
+
     try {
       setLoading(true);
       setStatus('Starting image resize process...');
       console.log('Current item data:', itemData);
-      console.log('Selected width:', width);
+      console.log('Selected width:', numWidth);
       console.log('Selected columns:', { source: sourceColumnId, target: targetColumnId });
       
       // Get the session token for authentication
@@ -274,7 +288,7 @@ function App() {
         },
         body: JSON.stringify({
           fileUrl: fileUrl,
-          width: width.toString()
+          width: numWidth.toString()
         })
       });
 
@@ -309,7 +323,7 @@ function App() {
       const originalName = file.name.toLowerCase();
       const extension = originalName.substring(originalName.lastIndexOf('.') + 1);
       const baseName = originalName.substring(0, originalName.lastIndexOf('.'));
-      const newFileName = `${baseName}_resized_${width}px.${extension}`;
+      const newFileName = `${baseName}_resized_${numWidth}px.${extension}`;
 
       try {
         setStatus('Uploading resized image...');
