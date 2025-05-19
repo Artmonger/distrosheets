@@ -7,23 +7,48 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [status, setStatus] = useState('');
-  const [size, setSize] = useState(800);
+  const [width, setWidth] = useState(800);
+  const [height, setHeight] = useState(800);
   const [sourceColumnId, setSourceColumnId] = useState(null);
   const [targetColumnId, setTargetColumnId] = useState(null);
+  const [resizeMode, setResizeMode] = useState('square'); // 'square' or 'custom'
   const [squareMode, setSquareMode] = useState('crop'); // 'crop' or 'pad'
   const [padColor, setPadColor] = useState('white'); // 'white' or 'transparent'
   const dataFetchedRef = React.useRef({});
 
-  const handleSizeChange = (value) => {
+  const handleWidthChange = (value) => {
     // Allow empty string for typing
     if (value === '') {
-      setSize('');
+      setWidth('');
       return;
     }
     // Parse the value and ensure it's a positive number
     const numValue = parseInt(value);
     if (!isNaN(numValue)) {
-      setSize(Math.max(1, numValue));
+      setWidth(Math.max(1, numValue));
+      if (resizeMode === 'square') {
+        setHeight(numValue);
+      }
+    }
+  };
+
+  const handleHeightChange = (value) => {
+    // Allow empty string for typing
+    if (value === '') {
+      setHeight('');
+      return;
+    }
+    // Parse the value and ensure it's a positive number
+    const numValue = parseInt(value);
+    if (!isNaN(numValue)) {
+      setHeight(Math.max(1, numValue));
+    }
+  };
+
+  const handleResizeModeChange = (mode) => {
+    setResizeMode(mode);
+    if (mode === 'square') {
+      setHeight(width);
     }
   };
 
@@ -199,18 +224,24 @@ function App() {
       return;
     }
 
-    // Validate size before processing
-    const numSize = parseInt(size);
-    if (!numSize || numSize < 1) {
-      setError('Please enter a valid size (minimum 1 pixel)');
+    // Validate dimensions before processing
+    const numWidth = parseInt(width);
+    const numHeight = parseInt(height);
+    if (!numWidth || numWidth < 1) {
+      setError('Please enter a valid width (minimum 1 pixel)');
+      return;
+    }
+    if (!numHeight || numHeight < 1) {
+      setError('Please enter a valid height (minimum 1 pixel)');
       return;
     }
 
     try {
       setLoading(true);
-      setStatus('Starting image square process...');
+      setStatus('Starting image processing...');
       console.log('Current item data:', itemData);
-      console.log('Selected size:', numSize);
+      console.log('Selected dimensions:', { width: numWidth, height: numHeight });
+      console.log('Resize mode:', resizeMode);
       console.log('Square mode:', squareMode);
       console.log('Pad color:', padColor);
       console.log('Selected columns:', { source: sourceColumnId, target: targetColumnId });
@@ -292,7 +323,9 @@ function App() {
         },
         body: JSON.stringify({
           fileUrl: fileUrl,
-          size: numSize.toString(),
+          width: numWidth.toString(),
+          height: numHeight.toString(),
+          resizeMode,
           squareMode,
           padColor
         })
@@ -329,8 +362,8 @@ function App() {
       const originalName = file.name.toLowerCase();
       const extension = originalName.substring(originalName.lastIndexOf('.') + 1);
       const baseName = originalName.substring(0, originalName.lastIndexOf('.'));
-      const modeText = squareMode === 'crop' ? 'cropped' : `padded_${padColor}`;
-      const newFileName = `${baseName}_squared_${numSize}px_${modeText}.${extension}`;
+      const dimensionsText = resizeMode === 'square' ? `${width}px_${squareMode}` : `${width}x${height}`;
+      const newFileName = `${baseName}_${dimensionsText}.${extension}`;
 
       try {
         setStatus('Uploading resized image...');
@@ -423,8 +456,8 @@ function App() {
   return (
     <div className="App">
       <header className="App-header">
-        <h1>Image Squarer</h1>
-        <p>Make your images perfectly square</p>
+        <h1>Image Resizer</h1>
+        <p>Resize your images with precision</p>
       </header>
       <main className="App-main">
         <div className="status-section">
@@ -467,30 +500,57 @@ function App() {
                     ))}
                 </select>
               </div>
+              <div className="mode-input-group">
+                <label htmlFor="resize-mode">Resize Mode</label>
+                <select
+                  id="resize-mode"
+                  value={resizeMode}
+                  onChange={(e) => handleResizeModeChange(e.target.value)}
+                  className="mode-select"
+                >
+                  <option value="square">Square (Same width & height)</option>
+                  <option value="custom">Custom (Different width & height)</option>
+                </select>
+              </div>
               <div className="dimension-input-group">
-                <label htmlFor="size">Square Size (px)</label>
+                <label htmlFor="width">Width (px)</label>
                 <input
-                  id="size"
+                  id="width"
                   type="number"
                   min="1"
-                  value={size}
-                  onChange={(e) => handleSizeChange(e.target.value)}
+                  value={width}
+                  onChange={(e) => handleWidthChange(e.target.value)}
                   className="dimension-input"
                 />
               </div>
-              <div className="mode-input-group">
-                <label htmlFor="square-mode">Square Method</label>
-                <select
-                  id="square-mode"
-                  value={squareMode}
-                  onChange={(e) => setSquareMode(e.target.value)}
-                  className="mode-select"
-                >
-                  <option value="crop">Crop to Square</option>
-                  <option value="pad">Add Padding</option>
-                </select>
-              </div>
-              {squareMode === 'pad' && (
+              {resizeMode === 'custom' && (
+                <div className="dimension-input-group">
+                  <label htmlFor="height">Height (px)</label>
+                  <input
+                    id="height"
+                    type="number"
+                    min="1"
+                    value={height}
+                    onChange={(e) => handleHeightChange(e.target.value)}
+                    className="dimension-input"
+                  />
+                </div>
+              )}
+              {resizeMode === 'square' && (
+                <div className="mode-input-group">
+                  <label htmlFor="square-mode">Square Method</label>
+                  <select
+                    id="square-mode"
+                    value={squareMode}
+                    onChange={(e) => setSquareMode(e.target.value)}
+                    className="mode-select"
+                  >
+                    <option value="crop">Crop to Square</option>
+                    <option value="pad">Add Padding</option>
+                  </select>
+                </div>
+              )}
+              {resizeMode === 'square' && squareMode === 'pad' && (
                 <div className="mode-input-group">
                   <label htmlFor="pad-color">Padding Color</label>
                   <select
@@ -510,7 +570,7 @@ function App() {
               disabled={loading || !sourceColumnId || !targetColumnId}
               className="resize-button"
             >
-              {loading ? 'Processing...' : 'Make Square'}
+              {loading ? 'Processing...' : 'Resize Image'}
             </button>
           </div>
         </div>
@@ -518,16 +578,16 @@ function App() {
           <h3>How to use:</h3>
           <ol>
             <li>Select the source column containing your original image</li>
-            <li>Select the target column where the squared image will be saved</li>
-            <li>Enter the desired square size in pixels</li>
-            <li>Choose how to make it square:
+            <li>Select the target column where the resized image will be saved</li>
+            <li>Choose your resize mode:
               <ul>
-                <li><strong>Crop to Square:</strong> Centers and crops the image</li>
-                <li><strong>Add Padding:</strong> Adds white or transparent borders</li>
+                <li><strong>Square:</strong> Same width and height with cropping or padding options</li>
+                <li><strong>Custom:</strong> Set different width and height values</li>
               </ul>
             </li>
-            <li>Click the "Make Square" button</li>
-            <li>Check the target column for your squared image</li>
+            <li>Enter your desired dimensions</li>
+            <li>Click the "Resize Image" button</li>
+            <li>Check the target column for your resized image</li>
           </ol>
         </div>
       </main>

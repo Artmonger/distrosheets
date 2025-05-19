@@ -67,23 +67,31 @@ async function downloadFileFromMonday(fileUrl, token) {
 app.post('/resize-image', async (req, res) => {
   try {
     console.log('Received resize request');
-    const { fileUrl, size, squareMode, padColor } = req.body;
+    const { fileUrl, width, height, resizeMode, squareMode, padColor } = req.body;
     const token = req.headers.authorization?.replace('Bearer ', '');
     
-    if (!fileUrl || !size) {
+    if (!fileUrl || !width || !height) {
       return res.status(400).json({ 
         error: 'Missing required parameters'
       });
     }
 
-    const parsedSize = parseInt(size);
-    if (isNaN(parsedSize) || parsedSize < 1 || parsedSize > 5000) {
+    const parsedWidth = parseInt(width);
+    const parsedHeight = parseInt(height);
+    if (isNaN(parsedWidth) || parsedWidth < 1 || parsedWidth > 5000 ||
+        isNaN(parsedHeight) || parsedHeight < 1 || parsedHeight > 5000) {
       return res.status(400).json({ 
-        error: 'Invalid size. Size must be between 1 and 5000 pixels.'
+        error: 'Invalid dimensions. Width and height must be between 1 and 5000 pixels.'
       });
     }
 
-    console.log('Processing image with settings:', { size: parsedSize, squareMode, padColor });
+    console.log('Processing image with settings:', { 
+      width: parsedWidth, 
+      height: parsedHeight,
+      resizeMode,
+      squareMode,
+      padColor 
+    });
     console.log('Downloading image from:', fileUrl);
     const buffer = await downloadFileFromMonday(fileUrl, token);
     console.log('Original buffer size:', buffer.byteLength);
@@ -95,20 +103,28 @@ app.post('/resize-image', async (req, res) => {
     // Initialize sharp pipeline
     let pipeline = sharp(buffer, { failOnError: false });
 
-    if (squareMode === 'crop') {
-      // Crop to square and resize
+    if (resizeMode === 'square') {
+      if (squareMode === 'crop') {
+        // Crop to square and resize
+        pipeline = pipeline
+          .resize(parsedWidth, parsedWidth, {
+            fit: 'cover',
+            position: 'center'
+          });
+      } else {
+        // Pad to square
+        pipeline = pipeline
+          .resize(parsedWidth, parsedWidth, {
+            fit: 'contain',
+            background: padColor === 'transparent' ? { r: 0, g: 0, b: 0, alpha: 0 } : { r: 255, g: 255, b: 255, alpha: 1 }
+          });
+      }
+    } else {
+      // Custom dimensions
       pipeline = pipeline
-        .resize(parsedSize, parsedSize, {
+        .resize(parsedWidth, parsedHeight, {
           fit: 'cover',
           position: 'center'
-        });
-    } else {
-      // Pad to square
-      // First resize to fit within the square while maintaining aspect ratio
-      pipeline = pipeline
-        .resize(parsedSize, parsedSize, {
-          fit: 'contain',
-          background: padColor === 'transparent' ? { r: 0, g: 0, b: 0, alpha: 0 } : { r: 255, g: 255, b: 255, alpha: 1 }
         });
     }
 
@@ -121,7 +137,7 @@ app.post('/resize-image', async (req, res) => {
           compressionLevel: 9
         });
     } else {
-      // Use JPEG for white backgrounds
+      // Use JPEG for white backgrounds or non-square images
       pipeline = pipeline
         .jpeg({
           quality: 95,
