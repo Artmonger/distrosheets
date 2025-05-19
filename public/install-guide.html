@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Installation Guide - Easy Image Resizer</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            line-height: 1.6;
+            color: #323338;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        h1 {
+            color: #323338;
+            border-bottom: 1px solid #e6e9ef;
+            padding-bottom: 10px;
+        }
+        h2 {
+            color: #323338;
+            margin-top: 30px;
+        }
+        .section {
+            margin: 30px 0;
+            padding: 20px;
+            background: #f5f6f8;
+            border-radius: 8px;
+        }
+        .step {
+            margin: 20px 0;
+            padding-left: 24px;
+            position: relative;
+        }
+        .step:before {
+            content: "→";
+            position: absolute;
+            left: 0;
+            color: #0073ea;
+        }
+        .note {
+            background: #fff4d1;
+            padding: 15px;
+            border-radius: 6px;
+            margin: 15px 0;
+        }
+        .note strong {
+            color: #c4a000;
+        }
+        .supported-formats {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 10px;
+            margin: 15px 0;
+        }
+        .format {
+            background: white;
+            padding: 10px;
+            border-radius: 4px;
+            text-align: center;
+            border: 1px solid #e6e9ef;
+        }
+        .format.supported {
+            border-left: 3px solid #00ca72;
+        }
+        .format.unsupported {
+            border-left: 3px solid #e44258;
+            color: #676879;
+        }
+        img {
+            max-width: 100%;
+            border-radius: 4px;
+            margin: 10px 0;
+            border: 1px solid #e6e9ef;
+        }
+        .last-updated {
+            color: #676879;
+            font-style: italic;
+            margin-top: 40px;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Installation Guide</h1>
+    
+    <div class="section">
+        <h2>1. Setting Up Your Board</h2>
+        <div class="step">
+            Open your Monday.com board where you want to use the image resizer.
+        </div>
+        <div class="step">
+            Add two file columns to your board:
+            <ul>
+                <li>One for original images (source)</li>
+                <li>One for resized images (target)</li>
+            </ul>
+        </div>
+        <div class="note">
+            <strong>Note:</strong> The app requires two separate file columns to work properly - one for input and one for output.
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>2. Adding the App to Your Board</h2>
+        <div class="step">
+            Click the "+" button in the top menu bar of your board
+        </div>
+        <div class="step">
+            Select "Add apps" from the dropdown menu
+        </div>
+        <div class="step">
+            Search for "Easy Image Resizer" in the apps marketplace
+        </div>
+        <div class="step">
+            Click "Install" and authorize the app
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>3. Using the App</h2>
+        <div class="step">
+            Open any item in your board by clicking on it
+        </div>
+        <div class="step">
+            Click the "..." menu in the top-right of the item view
+        </div>
+        <div class="step">
+            Select "Easy Image Resizer" from the apps menu
+        </div>
+        <div class="step">
+            The app will open in the item view, ready to process your images
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>4. Supported File Types</h2>
+        <p>The following image formats are supported:</p>
+        <div class="supported-formats">
+            <div class="format supported">
+                JPEG (.jpg, .jpeg)
+            </div>
+            <div class="format supported">
+                PNG (.png)
+            </div>
+            <div class="format supported">
+                WebP (.webp)
+            </div>
+            <div class="format supported">
+                GIF (.gif)
+            </div>
+            <div class="format supported">
+                BMP (.bmp)
+            </div>
+            <div class="format unsupported">
+                TIFF (.tiff)
+            </div>
+            <div class="format unsupported">
+                PSD (.psd)
+            </div>
+            <div class="format unsupported">
+                SVG (.svg)
+            </div>
+        </div>
+        <div class="note">
+            <strong>Important:</strong> For best results, use JPEG or PNG files. The app will maintain high quality settings (95% quality for JPEG, lossless for PNG).
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>5. Image Processing Options</h2>
+        <h3>Square Mode</h3>
+        <ul>
+            <li><strong>Crop to Square:</strong> Centers and crops the image to create a perfect square</li>
+            <li><strong>Add Padding:</strong> Adds white or transparent padding to create a square without cropping</li>
+        </ul>
+
+        <h3>Custom Mode</h3>
+        <ul>
+            <li><strong>Custom Dimensions:</strong> Specify any width and height for your output image</li>
+            <li><strong>Smart Cropping:</strong> Automatically focuses on the important parts of the image</li>
+        </ul>
+    </div>
+
+    <div class="section">
+        <h2>6. Tips for Best Results</h2>
+        <ul>
+            <li>Use high-quality source images for better output</li>
+            <li>For transparent backgrounds, use PNG format</li>
+            <li>Maximum dimension size is 5000 pixels</li>
+            <li>Minimum dimension size is 1 pixel</li>
+            <li>The app maintains aspect ratio when possible to prevent distortion</li>
+        </ul>
+    </div>
+
+    <div class="section">
+        <h2>7. Troubleshooting</h2>
+        <h3>Common Issues:</h3>
+        <ul>
+            <li><strong>File Not Showing:</strong> Make sure you've uploaded an image to the source column</li>
+            <li><strong>Processing Failed:</strong> Check if your file format is supported</li>
+            <li><strong>App Not Loading:</strong> Refresh the page or check your internet connection</li>
+        </ul>
+    </div>
+
+    <p class="last-updated">Last updated: March 2024</p>
+</body>
+</html> 

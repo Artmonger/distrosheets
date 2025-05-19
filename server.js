@@ -202,6 +202,11 @@ app.get('/terms', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'terms.html'));
 });
 
+// Installation Guide endpoint
+app.get('/install', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'install-guide.html'));
+});
+
 // Pricing endpoint
 app.get('/pricing', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'pricing.html'));
