@@ -456,8 +456,8 @@ function App() {
   return (
     <div className="App">
       <header className="App-header">
-        <h1>Image Resizer</h1>
-        <p>Resize your images with precision</p>
+        <h1>Easy Image Resizer</h1>
+        <p>Transform your images effortlessly - square or custom dimensions in seconds</p>
       </header>
       <main className="App-main">
         <div className="status-section">
