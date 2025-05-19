@@ -8,6 +8,8 @@ function App() {
   const [error, setError] = useState(null);
   const [status, setStatus] = useState('');
   const [width, setWidth] = useState(800);
+  const [sourceColumnId, setSourceColumnId] = useState(null);
+  const [targetColumnId, setTargetColumnId] = useState(null);
   const dataFetchedRef = React.useRef({});
 
   const handleWidthChange = (value) => {
@@ -165,8 +167,7 @@ function App() {
       setItemData({
         item: itemResponse.data.items[0],
         columns: columns,
-        sourceFileColumnId: fileColumns[0]?.id,
-        targetFileColumnId: fileColumns[1]?.id
+        fileColumns: fileColumns
       });
 
       setStatus('Ready to resize images');
@@ -184,11 +185,17 @@ function App() {
       return;
     }
 
+    if (!sourceColumnId || !targetColumnId) {
+      setError('Please select both source and target columns');
+      return;
+    }
+
     try {
       setLoading(true);
       setStatus('Starting image resize process...');
       console.log('Current item data:', itemData);
       console.log('Selected width:', width);
+      console.log('Selected columns:', { source: sourceColumnId, target: targetColumnId });
       
       // Get the session token for authentication
       const tokenResponse = await monday.get('sessionToken');
@@ -199,12 +206,12 @@ function App() {
         throw new Error('No session token available');
       }
       
-      // Find the source file column using the stored ID
-      const sourceColumn = itemData.item.column_values.find(cv => cv.column.id === itemData.sourceFileColumnId);
+      // Find the source file column using the selected ID
+      const sourceColumn = itemData.item.column_values.find(cv => cv.column.id === sourceColumnId);
       console.log('Source column:', sourceColumn);
       
       if (!sourceColumn?.value) {
-        throw new Error('No source file found - please add an image to the first file column');
+        throw new Error('No source file found - please add an image to the selected source column');
       }
 
       const fileValue = JSON.parse(sourceColumn.value);
@@ -312,7 +319,7 @@ function App() {
         
         // First, upload the file to Monday.com
         const uploadMutation = `mutation($file: File!) {
-          add_file_to_column(item_id: ${context.itemId}, column_id: "${itemData.targetFileColumnId}", file: $file) {
+          add_file_to_column(item_id: ${context.itemId}, column_id: "${targetColumnId}", file: $file) {
             id
           }
         }`;
@@ -379,7 +386,7 @@ function App() {
     );
   }
 
-  const fileColumns = itemData.columns.filter(col => col.type === 'file');
+  const fileColumns = itemData.fileColumns || [];
 
   if (fileColumns.length < 2) {
     return (
@@ -396,14 +403,49 @@ function App() {
     <div className="App">
       <header className="App-header">
         <h1>Image Resizer</h1>
-        <p>Enter desired width and click resize</p>
+        <p>Resize your images with ease</p>
       </header>
       <main className="App-main">
         <div className="status-section">
           <h3>Current Status</h3>
-          <p>{status || 'Ready to resize images'}</p>
+          <p>{status || 'Ready to process images'}</p>
           <div className="resize-controls">
-            <div className="dimension-inputs">
+            <div className="control-inputs">
+              <div className="column-select-group">
+                <label htmlFor="source-column">Source Column</label>
+                <select
+                  id="source-column"
+                  value={sourceColumnId || ''}
+                  onChange={(e) => setSourceColumnId(e.target.value)}
+                  className="column-select"
+                >
+                  <option value="">Select source column</option>
+                  {fileColumns.map(col => (
+                    <option key={col.id} value={col.id}>
+                      {col.title}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="column-select-group">
+                <label htmlFor="target-column">Target Column</label>
+                <select
+                  id="target-column"
+                  value={targetColumnId || ''}
+                  onChange={(e) => setTargetColumnId(e.target.value)}
+                  className="column-select"
+                  disabled={!sourceColumnId}
+                >
+                  <option value="">Select target column</option>
+                  {fileColumns
+                    .filter(col => col.id !== sourceColumnId)
+                    .map(col => (
+                      <option key={col.id} value={col.id}>
+                        {col.title}
+                      </option>
+                    ))}
+                </select>
+              </div>
               <div className="dimension-input-group">
                 <label htmlFor="width">Width (px)</label>
                 <input
@@ -418,7 +460,7 @@ function App() {
             </div>
             <button
               onClick={handleImageResize}
-              disabled={loading}
+              disabled={loading || !sourceColumnId || !targetColumnId}
               className="resize-button"
             >
               {loading ? 'Processing...' : 'Resize Image'}
@@ -428,10 +470,11 @@ function App() {
         <div className="instructions">
           <h3>How to use:</h3>
           <ol>
-            <li>Add an image to the first file column</li>
-            <li>Enter your desired width in pixels</li>
+            <li>Select the source column containing your original image</li>
+            <li>Select the target column where the resized image will be saved</li>
+            <li>Enter the desired width in pixels</li>
             <li>Click the "Resize Image" button</li>
-            <li>Check the second file column for the resized image</li>
+            <li>Check the target column for your resized image</li>
           </ol>
         </div>
       </main>
