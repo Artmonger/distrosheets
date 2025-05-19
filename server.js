@@ -176,6 +176,11 @@ app.get('/health', (req, res) => {
   res.json({ status: 'ok' });
 });
 
+// Privacy Policy endpoint
+app.get('/privacy', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'privacy-policy.html'));
+});
+
 // The "catchall" handler: for any request that doesn't
 // match one above, send back React's index.html file.
 app.get('*', (req, res) => {
