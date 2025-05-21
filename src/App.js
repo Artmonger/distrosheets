@@ -395,7 +395,7 @@ function App() {
           setTimeout(() => {
             setShowSuccess(false);
             setSuccessMessage('');
-          }, 2000);
+          }, 3000);
           await fetchItemData(context.boardId, context.itemId);
           setError(null);
 
