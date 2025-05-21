@@ -17,6 +17,8 @@ function App() {
   const [cropPosition, setCropPosition] = useState('center'); // 'center', 'top', 'bottom'
   const dataFetchedRef = React.useRef({});
   const [initialLoadComplete, setInitialLoadComplete] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
 
   const handleWidthChange = (value) => {
     // Allow empty string for typing
@@ -388,6 +390,12 @@ function App() {
         if (result.data?.add_file_to_column?.id) {
           console.log('Successfully uploaded resized image');
           setStatus('Successfully resized and uploaded image!');
+          setSuccessMessage('Image successfully resized and placed in target column!');
+          setShowSuccess(true);
+          setTimeout(() => {
+            setShowSuccess(false);
+            setSuccessMessage('');
+          }, 2000);
           await fetchItemData(context.boardId, context.itemId);
           setError(null);
 
@@ -484,6 +492,18 @@ function App() {
         <div className="error">
           <h3>Not Enough File Columns</h3>
           <p>Please add at least two file columns to your board to use this app.</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show a success message after resizing
+  if (showSuccess) {
+    return (
+      <div className="App">
+        <div className="success-message">
+          <div className="success-icon">✓</div>
+          <div className="success-text">{successMessage}</div>
         </div>
       </div>
     );
