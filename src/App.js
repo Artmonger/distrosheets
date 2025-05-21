@@ -416,7 +416,7 @@ function App() {
       }
 
       // Show success message after all files are processed
-      setSuccessMessage(`Successfully resized ${imageFiles.length} image${imageFiles.length > 1 ? 's' : ''} and placed in target column!`);
+      setSuccessMessage('Successfully Resized!');
       setShowSuccess(true);
       setTimeout(() => {
         setShowSuccess(false);
