@@ -125,8 +125,9 @@ function App() {
     return () => {
       mounted = false;
       unsubscribeContext();
+      console.clear();
     };
-  }, []);
+  }, [context?.itemId]);
 
   const fetchItemData = async (boardId, itemId) => {
     const monday = window.monday;
