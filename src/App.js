@@ -81,7 +81,16 @@ function App() {
             if (contextRes.data.boardId && contextRes.data.itemId) {
               console.log('Valid initial context, fetching data...');
               dataFetchedRef.current[contextKey] = true;
-              await fetchItemData(contextRes.data.boardId, contextRes.data.itemId);
+              try {
+                await fetchItemData(contextRes.data.boardId, contextRes.data.itemId);
+              } catch (err) {
+                if (err.message.includes('permission') || err.message.includes('access')) {
+                  setError('As a viewer user, you don\'t have access to the app. Please contact your board admin for access.');
+                  setLoading(false);
+                  return;
+                }
+                throw err;
+              }
             } else {
               console.log('Initial context missing boardId or itemId:', contextRes.data);
               setError('Please open this app in a board item view');
@@ -96,7 +105,11 @@ function App() {
       } catch (err) {
         console.error("Initialization error:", err);
         if (mounted) {
-          setError(err.message);
+          if (err.message.includes('permission') || err.message.includes('access')) {
+            setError('As a viewer user, you don\'t have access to the app. Please contact your board admin for access.');
+          } else {
+            setError(err.message);
+          }
           setLoading(false);
         }
       }
@@ -213,7 +226,10 @@ function App() {
       setError(null);
     } catch (err) {
       console.error("Error fetching data:", err);
-      setError(err.message);
+      if (err.message.includes('permission') || err.message.includes('access')) {
+        throw new Error('As a viewer user, you don\'t have access to the app. Please contact your board admin for access.');
+      }
+      throw err;
     }
   };
 
