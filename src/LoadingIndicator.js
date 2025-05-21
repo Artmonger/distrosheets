@@ -2,8 +2,7 @@ import React from 'react';
 
 const LoadingIndicator = ({ message }) => (
   <div className="loading">
-    <div className="loading-spinner"></div>
-    <h3>Loading...</h3>
+    <img src="/monday-spinner.gif" alt="Loading..." style={{ width: 80, height: 80, marginBottom: 24 }} />
     {message && <p>{message}</p>}
   </div>
 );
