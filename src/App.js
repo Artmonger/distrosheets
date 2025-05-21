@@ -395,6 +395,8 @@ function App() {
           if (window.monday && window.monday.execute) {
             window.monday.execute('valueCreatedForUser');
           }
+          // Clear the console after successful resize
+          console.clear();
         } else {
           throw new Error('Failed to upload file');
         }
