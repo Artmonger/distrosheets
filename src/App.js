@@ -279,154 +279,159 @@ function App() {
       console.log('Source column:', sourceColumn);
       
       if (!sourceColumn?.value) {
-        throw new Error('No source file found - please add an image to the selected source column');
+        throw new Error('No source files found - please add images to the selected source column');
       }
 
       const fileValue = JSON.parse(sourceColumn.value);
       console.log('File value:', fileValue);
       
-      const file = fileValue.files[0];
-      console.log('File to process:', file);
+      const files = fileValue.files || [];
+      console.log('Files to process:', files);
       
-      if (!file) {
-        throw new Error('No file found in source column');
+      if (files.length === 0) {
+        throw new Error('No files found in source column');
       }
 
-      if (!isImageFile(file)) {
-        throw new Error('Source file is not an image - please add a valid image file (JPEG, PNG, GIF, BMP, or WebP)');
+      // Filter for image files only
+      const imageFiles = files.filter(file => isImageFile(file));
+      if (imageFiles.length === 0) {
+        throw new Error('No valid image files found - please add valid image files (JPEG, PNG, GIF, BMP, or WebP)');
       }
 
-      // Get the file URL
-      console.log('Getting file URL for asset:', file.assetId);
-      
-      const query = `query {
-        assets(ids: [${file.assetId}]) {
-          url
-          public_url
-          name
-          id
-        }
-      }`;
-
-      console.log('Querying for asset URL:', { assetId: file.assetId });
-      const response = await monday.api(query);
-      console.log('Asset URL response:', JSON.stringify(response, null, 2));
-
-      if (!response.data?.assets?.length) {
-        throw new Error('No asset found with ID: ' + file.assetId);
-      }
-
-      const asset = response.data.assets[0];
-      if (!asset.url && !asset.public_url) {
-        throw new Error('No URL available for asset: ' + file.assetId);
-      }
-
-      // Prefer public_url if available, fall back to url
-      const fileUrl = asset.public_url || asset.url;
-      console.log('Selected URL for download:', fileUrl);
-      
-      if (!fileUrl) {
-        throw new Error('Failed to get file URL');
-      }
-      
-      // Call our server endpoint to resize the image
-      console.log('Sending resize request to server');
-      const resizeResponse = await fetch('/resize-image', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-          'Accept': 'image/jpeg'
-        },
-        body: JSON.stringify({
-          fileUrl: fileUrl,
-          width: numWidth.toString(),
-          height: numHeight.toString(),
-          resizeMode,
-          squareMode,
-          padColor,
-          cropPosition
-        })
-      });
-
-      if (!resizeResponse.ok) {
-        const errorData = await resizeResponse.json();
-        console.error('Resize error response:', errorData);
-        throw new Error(`Failed to resize image: ${JSON.stringify(errorData)}`);
-      }
-
-      // Get image metadata from headers
-      const imageWidth = resizeResponse.headers.get('X-Image-Width');
-      const imageHeight = resizeResponse.headers.get('X-Image-Height');
-      const originalSize = resizeResponse.headers.get('X-Original-Size');
-      const contentType = resizeResponse.headers.get('Content-Type');
-
-      console.log('Got resize result:', {
-        width: imageWidth,
-        height: imageHeight,
-        originalSize: originalSize,
-        contentLength: resizeResponse.headers.get('Content-Length'),
-        contentType: contentType
-      });
-
-      // Get binary data directly with proper content type
-      const imageBlob = await resizeResponse.blob();
-      console.log('Received image blob:', {
-        size: imageBlob.size,
-        type: imageBlob.type
-      });
-      
-      // Generate a more descriptive filename that includes original name
-      const originalName = file.name.toLowerCase();
-      const extension = originalName.substring(originalName.lastIndexOf('.') + 1);
-      const baseName = originalName.substring(0, originalName.lastIndexOf('.'));
-      const dimensionsText = resizeMode === 'square' ? `${width}px_${squareMode}_${cropPosition}` : `${width}x${height}`;
-      const newFileName = `${baseName}_${dimensionsText}.${extension}`;
-
-      try {
+      // Process each image file
+      for (const file of imageFiles) {
+        // Get the file URL
+        console.log('Getting file URL for asset:', file.assetId);
         
-        // Create a File object from the blob
-        const file = new File([imageBlob], newFileName, { type: 'image/jpeg' });
-        
-        // First, upload the file to Monday.com
-        const uploadMutation = `mutation($file: File!) {
-          add_file_to_column(item_id: ${context.itemId}, column_id: "${targetColumnId}", file: $file) {
+        const query = `query {
+          assets(ids: [${file.assetId}]) {
+            url
+            public_url
+            name
             id
           }
         }`;
 
-        const result = await monday.api(uploadMutation, { variables: { file } });
-        console.log('File upload response:', result);
+        console.log('Querying for asset URL:', { assetId: file.assetId });
+        const response = await monday.api(query);
+        console.log('Asset URL response:', JSON.stringify(response, null, 2));
 
-        if (result.data?.add_file_to_column?.id) {
-          console.log('Successfully uploaded resized image');
-          setSuccessMessage('Image successfully resized and placed in target column!');
-          setShowSuccess(true);
-          setTimeout(() => {
-            setShowSuccess(false);
-            setSuccessMessage('');
-          }, 3000);
-          await fetchItemData(context.boardId, context.itemId);
-          setError(null);
-
-          // Track first value created event for Monday.com
-          if (window.monday && window.monday.execute) {
-            window.monday.execute('valueCreatedForUser');
-          }
-          // Clear the console after successful resize
-          console.clear();
-        } else {
-          throw new Error('Failed to upload file');
+        if (!response.data?.assets?.length) {
+          console.error('No asset found with ID:', file.assetId);
+          continue;
         }
 
-      } catch (err) {
-        console.error('Error during file upload:', err);
-        setError('Failed to upload file: ' + err.message);
+        const asset = response.data.assets[0];
+        if (!asset.url && !asset.public_url) {
+          console.error('No URL available for asset:', file.assetId);
+          continue;
+        }
+
+        // Prefer public_url if available, fall back to url
+        const fileUrl = asset.public_url || asset.url;
+        console.log('Selected URL for download:', fileUrl);
+        
+        if (!fileUrl) {
+          console.error('Failed to get file URL for:', file.name);
+          continue;
+        }
+        
+        // Call our server endpoint to resize the image
+        console.log('Sending resize request to server for:', file.name);
+        const resizeResponse = await fetch('/resize-image', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'image/jpeg'
+          },
+          body: JSON.stringify({
+            fileUrl: fileUrl,
+            width: numWidth.toString(),
+            height: numHeight.toString(),
+            resizeMode,
+            squareMode,
+            padColor,
+            cropPosition
+          })
+        });
+
+        if (!resizeResponse.ok) {
+          const errorData = await resizeResponse.json();
+          console.error('Resize error response for', file.name, ':', errorData);
+          continue;
+        }
+
+        // Get image metadata from headers
+        const imageWidth = resizeResponse.headers.get('X-Image-Width');
+        const imageHeight = resizeResponse.headers.get('X-Image-Height');
+        const originalSize = resizeResponse.headers.get('X-Original-Size');
+        const contentType = resizeResponse.headers.get('Content-Type');
+
+        console.log('Got resize result for', file.name, ':', {
+          width: imageWidth,
+          height: imageHeight,
+          originalSize: originalSize,
+          contentLength: resizeResponse.headers.get('Content-Length'),
+          contentType: contentType
+        });
+
+        // Get binary data directly with proper content type
+        const imageBlob = await resizeResponse.blob();
+        console.log('Received image blob for', file.name, ':', {
+          size: imageBlob.size,
+          type: imageBlob.type
+        });
+        
+        // Generate a more descriptive filename that includes original name
+        const originalName = file.name.toLowerCase();
+        const extension = originalName.substring(originalName.lastIndexOf('.') + 1);
+        const baseName = originalName.substring(0, originalName.lastIndexOf('.'));
+        const dimensionsText = resizeMode === 'square' ? `${width}px_${squareMode}_${cropPosition}` : `${width}x${height}`;
+        const newFileName = `${baseName}_${dimensionsText}.${extension}`;
+
+        try {
+          // Create a File object from the blob
+          const file = new File([imageBlob], newFileName, { type: 'image/jpeg' });
+          
+          // Upload the file to Monday.com
+          const uploadMutation = `mutation($file: File!) {
+            add_file_to_column(item_id: ${context.itemId}, column_id: "${targetColumnId}", file: $file) {
+              id
+            }
+          }`;
+
+          const result = await monday.api(uploadMutation, { variables: { file } });
+          console.log('File upload response for', newFileName, ':', result);
+
+          if (!result.data?.add_file_to_column?.id) {
+            console.error('Failed to upload file:', newFileName);
+          }
+        } catch (err) {
+          console.error('Error during file upload for', newFileName, ':', err);
+        }
       }
+
+      // Show success message after all files are processed
+      setSuccessMessage(`Successfully resized ${imageFiles.length} image${imageFiles.length > 1 ? 's' : ''} and placed in target column!`);
+      setShowSuccess(true);
+      setTimeout(() => {
+        setShowSuccess(false);
+        setSuccessMessage('');
+      }, 3000);
+      await fetchItemData(context.boardId, context.itemId);
+      setError(null);
+
+      // Track first value created event for Monday.com
+      if (window.monday && window.monday.execute) {
+        window.monday.execute('valueCreatedForUser');
+      }
+      // Clear the console after successful resize
+      console.clear();
 
     } catch (err) {
       console.error("Error during image resize:", err);
-      setError('Failed to resize image: ' + err.message);
+      setError('Failed to resize images: ' + err.message);
     }
   };
 
