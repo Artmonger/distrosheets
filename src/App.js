@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import './App.css';
+import LoadingIndicator from './LoadingIndicator';
 
 function App() {
   const [context, setContext] = useState(null);
@@ -19,6 +20,7 @@ function App() {
   const [initialLoadComplete, setInitialLoadComplete] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
+  const [resizing, setResizing] = useState(false);
 
   const handleWidthChange = (value) => {
     // Allow empty string for typing
@@ -298,6 +300,7 @@ function App() {
         throw new Error('No valid image files found - please add valid image files (JPEG, PNG, GIF, BMP, or WebP)');
       }
 
+      setResizing(true);
       // Process each image file
       for (const file of imageFiles) {
         // Get the file URL
@@ -432,6 +435,8 @@ function App() {
     } catch (err) {
       console.error("Error during image resize:", err);
       setError('Failed to resize images: ' + err.message);
+    } finally {
+      setResizing(false);
     }
   };
 
@@ -507,6 +512,12 @@ function App() {
         </div>
       </div>
     );
+  }
+
+  // Show spinner overlay during resizing
+  if (resizing) {
+    const message = `Resizing Image${itemData && itemData.item && itemData.item.column_values && itemData.item.column_values.find(cv => cv.column.id === sourceColumnId) ? (() => { try { const files = JSON.parse(itemData.item.column_values.find(cv => cv.column.id === sourceColumnId).value).files || []; return files.length > 1 ? 's' : ''; } catch { return ''; } })() : ''}...`;
+    return <LoadingIndicator message={message} />;
   }
 
   return (
