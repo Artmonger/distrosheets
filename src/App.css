@@ -292,6 +292,7 @@ button:disabled {
   margin-left: auto;
   margin-right: auto;
   display: block;
+  padding-right: 36px;
 }
 
 .column-select {
@@ -346,7 +347,6 @@ button:disabled {
   background-repeat: no-repeat;
   background-position: right 12px center;
   background-size: 12px;
-  padding-right: 32px;
 }
 
 .resize-button {
