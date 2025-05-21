@@ -242,8 +242,6 @@ function App() {
     }
 
     try {
-      setLoading(true);
-      setStatus('Starting image processing...');
       console.log('Current item data:', itemData);
       console.log('Selected dimensions:', { width: numWidth, height: numHeight });
       console.log('Resize mode:', resizeMode);
@@ -277,13 +275,12 @@ function App() {
       if (!file) {
         throw new Error('No file found in source column');
       }
-      
+
       if (!isImageFile(file)) {
         throw new Error('Source file is not an image - please add a valid image file (JPEG, PNG, GIF, BMP, or WebP)');
       }
 
       // Get the file URL
-      setStatus('Getting file URL...');
       console.log('Getting file URL for asset:', file.assetId);
       
       const query = `query {
@@ -317,7 +314,6 @@ function App() {
       }
       
       // Call our server endpoint to resize the image
-      setStatus('Resizing image...');
       console.log('Sending resize request to server');
       const resizeResponse = await fetch('/resize-image', {
         method: 'POST',
@@ -372,7 +368,6 @@ function App() {
       const newFileName = `${baseName}_${dimensionsText}.${extension}`;
 
       try {
-        setStatus('Uploading resized image...');
         
         // Create a File object from the blob
         const file = new File([imageBlob], newFileName, { type: 'image/jpeg' });
@@ -389,7 +384,6 @@ function App() {
 
         if (result.data?.add_file_to_column?.id) {
           console.log('Successfully uploaded resized image');
-          setStatus('Successfully resized and uploaded image!');
           setSuccessMessage('Image successfully resized and placed in target column!');
           setShowSuccess(true);
           setTimeout(() => {
@@ -412,15 +406,11 @@ function App() {
       } catch (err) {
         console.error('Error during file upload:', err);
         setError('Failed to upload file: ' + err.message);
-        setStatus('Error occurred while uploading image');
       }
 
     } catch (err) {
       console.error("Error during image resize:", err);
       setError('Failed to resize image: ' + err.message);
-      setStatus('Error occurred while processing image');
-    } finally {
-      setLoading(false);
     }
   };
 
