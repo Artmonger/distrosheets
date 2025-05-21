@@ -509,7 +509,7 @@ function App() {
                   onChange={(e) => setSourceColumnId(e.target.value)}
                   className="column-select"
                 >
-                  <option value="">Select source column</option>
+                  <option value="">Select source column{'     '}</option>
                   {fileColumns.map(col => (
                     <option key={col.id} value={col.id}>
                       {col.title}
@@ -526,7 +526,7 @@ function App() {
                   className="column-select"
                   disabled={!sourceColumnId}
                 >
-                  <option value="">Select target column</option>
+                  <option value="">Select target column{'     '}</option>
                   {fileColumns
                     .filter(col => col.id !== sourceColumnId)
                     .map(col => (
@@ -609,7 +609,7 @@ function App() {
                     onChange={(e) => setCropPosition(e.target.value)}
                     className="crop-position-select"
                   >
-                    <option value="center">Center{'     '}</option>
+                    <option value="center">Center</option>
                     <option value="top">Top{'     '}</option>
                     <option value="bottom">Bottom{'     '}</option>
                   </select>
