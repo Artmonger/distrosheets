@@ -441,6 +441,18 @@ function App() {
     );
   }
 
+  // Show a loader when resizing is in progress
+  if (status === 'Processing image...') {
+    return (
+      <div className="App">
+        <div className="loading">
+          <div className="loader-spinner"></div>
+          <div style={{ color: '#f5f6f8', marginTop: 10 }}>Resizing your image…</div>
+        </div>
+      </div>
+    );
+  }
+
   if (error) {
     return (
       <div className="App">
