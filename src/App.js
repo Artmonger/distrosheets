@@ -544,8 +544,8 @@ function App() {
                   onChange={(e) => handleResizeModeChange(e.target.value)}
                   className="mode-select"
                 >
-                  <option value="square">Square (Same width & height)</option>
-                  <option value="custom">Custom (Different width & height)</option>
+                  <option value="custom">Custom Size{'     '}</option>
+                  <option value="square">Square (Same width & height){'     '}</option>
                 </select>
               </div>
               <div className="dimension-input-group">
@@ -581,8 +581,8 @@ function App() {
                     onChange={(e) => setSquareMode(e.target.value)}
                     className="mode-select"
                   >
-                    <option value="crop">Crop to Square</option>
-                    <option value="pad">Add Padding</option>
+                    <option value="crop">Crop to Square{'     '}</option>
+                    <option value="pad">Pad to Square{'     '}</option>
                   </select>
                 </div>
               )}
@@ -607,11 +607,11 @@ function App() {
                     id="crop-position"
                     value={cropPosition}
                     onChange={(e) => setCropPosition(e.target.value)}
-                    className="mode-select"
+                    className="crop-position-select"
                   >
-                    <option value="center">Center</option>
-                    <option value="top">Top</option>
-                    <option value="bottom">Bottom</option>
+                    <option value="center">Center{'     '}</option>
+                    <option value="top">Top{'     '}</option>
+                    <option value="bottom">Bottom{'     '}</option>
                   </select>
                 </div>
               )}
