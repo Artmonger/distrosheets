@@ -16,6 +16,7 @@ function App() {
   const [padColor, setPadColor] = useState('white'); // 'white' or 'transparent'
   const [cropPosition, setCropPosition] = useState('center'); // 'center', 'top', 'bottom'
   const dataFetchedRef = React.useRef({});
+  const [initialLoadComplete, setInitialLoadComplete] = useState(false);
 
   const handleWidthChange = (value) => {
     // Allow empty string for typing
@@ -412,6 +413,11 @@ function App() {
     }
   };
 
+  useEffect(() => {
+    const timer = setTimeout(() => setInitialLoadComplete(true), 2000);
+    return () => clearTimeout(timer);
+  }, []);
+
   // Only set loading to false after both context and itemData are loaded
   useEffect(() => {
     if (context && itemData) {
@@ -419,7 +425,7 @@ function App() {
     }
   }, [context, itemData]);
 
-  if (loading) {
+  if (loading || !initialLoadComplete) {
     return (
       <div className="App">
         <div className="loading">
