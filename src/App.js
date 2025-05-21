@@ -412,6 +412,13 @@ function App() {
     }
   };
 
+  // Only set loading to false after both context and itemData are loaded
+  useEffect(() => {
+    if (context && itemData) {
+      setLoading(false);
+    }
+  }, [context, itemData]);
+
   if (loading) {
     return (
       <div className="App">
