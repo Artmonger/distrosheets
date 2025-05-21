@@ -527,134 +527,130 @@ function App() {
         <p>Transform your images effortlessly - square or custom dimensions in seconds</p>
       </header>
       <main className="App-main">
-        <div className="status-section">
-          <h3>Current Status</h3>
-          <p>{status || 'Ready to process images'}</p>
-          <div className="resize-controls">
-            <div className="control-inputs">
-              <div className="column-select-group">
-                <label htmlFor="source-column">Source Column</label>
-                <select
-                  id="source-column"
-                  value={sourceColumnId || ''}
-                  onChange={(e) => setSourceColumnId(e.target.value)}
-                  className="column-select"
-                >
-                  <option value="">Select source column{'     '}</option>
-                  {fileColumns.map(col => (
+        <div className="resize-controls">
+          <div className="control-inputs">
+            <div className="column-select-group">
+              <label htmlFor="source-column">Source Column</label>
+              <select
+                id="source-column"
+                value={sourceColumnId || ''}
+                onChange={(e) => setSourceColumnId(e.target.value)}
+                className="column-select"
+              >
+                <option value="">Select source column{'     '}</option>
+                {fileColumns.map(col => (
+                  <option key={col.id} value={col.id}>
+                    {col.title}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="column-select-group">
+              <label htmlFor="target-column">Target Column</label>
+              <select
+                id="target-column"
+                value={targetColumnId || ''}
+                onChange={(e) => setTargetColumnId(e.target.value)}
+                className="column-select"
+                disabled={!sourceColumnId}
+              >
+                <option value="">Select target column{'     '}</option>
+                {fileColumns
+                  .filter(col => col.id !== sourceColumnId)
+                  .map(col => (
                     <option key={col.id} value={col.id}>
                       {col.title}
                     </option>
                   ))}
-                </select>
-              </div>
-              <div className="column-select-group">
-                <label htmlFor="target-column">Target Column</label>
-                <select
-                  id="target-column"
-                  value={targetColumnId || ''}
-                  onChange={(e) => setTargetColumnId(e.target.value)}
-                  className="column-select"
-                  disabled={!sourceColumnId}
-                >
-                  <option value="">Select target column{'     '}</option>
-                  {fileColumns
-                    .filter(col => col.id !== sourceColumnId)
-                    .map(col => (
-                      <option key={col.id} value={col.id}>
-                        {col.title}
-                      </option>
-                    ))}
-                </select>
-              </div>
-              <div className="mode-input-group">
-                <label htmlFor="resize-mode">Resize Mode</label>
-                <select
-                  id="resize-mode"
-                  value={resizeMode}
-                  onChange={(e) => handleResizeModeChange(e.target.value)}
-                  className="mode-select"
-                >
-                  <option value="custom">Custom Size{'     '}</option>
-                  <option value="square">Square (Same width & height){'     '}</option>
-                </select>
-              </div>
+              </select>
+            </div>
+            <div className="mode-input-group">
+              <label htmlFor="resize-mode">Resize Mode</label>
+              <select
+                id="resize-mode"
+                value={resizeMode}
+                onChange={(e) => handleResizeModeChange(e.target.value)}
+                className="mode-select"
+              >
+                <option value="custom">Custom Size{'     '}</option>
+                <option value="square">Square (Same width & height){'     '}</option>
+              </select>
+            </div>
+            <div className="dimension-input-group">
+              <label htmlFor="width">Width (px)</label>
+              <input
+                id="width"
+                type="number"
+                min="1"
+                value={width}
+                onChange={(e) => handleWidthChange(e.target.value)}
+                className="dimension-input"
+              />
+            </div>
+            {resizeMode === 'custom' && (
               <div className="dimension-input-group">
-                <label htmlFor="width">Width (px)</label>
+                <label htmlFor="height">Height (px)</label>
                 <input
-                  id="width"
+                  id="height"
                   type="number"
                   min="1"
-                  value={width}
-                  onChange={(e) => handleWidthChange(e.target.value)}
+                  value={height}
+                  onChange={(e) => handleHeightChange(e.target.value)}
                   className="dimension-input"
                 />
               </div>
-              {resizeMode === 'custom' && (
-                <div className="dimension-input-group">
-                  <label htmlFor="height">Height (px)</label>
-                  <input
-                    id="height"
-                    type="number"
-                    min="1"
-                    value={height}
-                    onChange={(e) => handleHeightChange(e.target.value)}
-                    className="dimension-input"
-                  />
-                </div>
-              )}
-              {resizeMode === 'square' && (
-                <div className="mode-input-group">
-                  <label htmlFor="square-mode">Square Method</label>
-                  <select
-                    id="square-mode"
-                    value={squareMode}
-                    onChange={(e) => setSquareMode(e.target.value)}
-                    className="mode-select"
-                  >
-                    <option value="crop">Crop to Square{'     '}</option>
-                    <option value="pad">Pad to Square{'     '}</option>
-                  </select>
-                </div>
-              )}
-              {resizeMode === 'square' && squareMode === 'pad' && (
-                <div className="mode-input-group">
-                  <label htmlFor="pad-color">Padding Color</label>
-                  <select
-                    id="pad-color"
-                    value={padColor}
-                    onChange={(e) => setPadColor(e.target.value)}
-                    className="mode-select"
-                  >
-                    <option value="white">White</option>
-                    <option value="transparent">Transparent</option>
-                  </select>
-                </div>
-              )}
-              {resizeMode === 'square' && squareMode === 'crop' && (
-                <div className="mode-input-group">
-                  <label htmlFor="crop-position">Crop Position</label>
-                  <select
-                    id="crop-position"
-                    value={cropPosition}
-                    onChange={(e) => setCropPosition(e.target.value)}
-                    className="crop-position-select"
-                  >
-                    <option value="center">Center</option>
-                    <option value="top">Top{'     '}</option>
-                    <option value="bottom">Bottom{'     '}</option>
-                  </select>
-                </div>
-              )}
-            </div>
-            <button
-              onClick={handleImageResize}
-              disabled={loading || !sourceColumnId || !targetColumnId}
-              className="resize-button"
-            >
-              {loading ? 'Processing...' : 'Resize Image'}
-            </button>
+            )}
+            {resizeMode === 'square' && (
+              <div className="mode-input-group">
+                <label htmlFor="square-mode">Square Method</label>
+                <select
+                  id="square-mode"
+                  value={squareMode}
+                  onChange={(e) => setSquareMode(e.target.value)}
+                  className="mode-select"
+                >
+                  <option value="crop">Crop to Square{'     '}</option>
+                  <option value="pad">Pad to Square{'     '}</option>
+                </select>
+              </div>
+            )}
+            {resizeMode === 'square' && squareMode === 'pad' && (
+              <div className="mode-input-group">
+                <label htmlFor="pad-color">Padding Color</label>
+                <select
+                  id="pad-color"
+                  value={padColor}
+                  onChange={(e) => setPadColor(e.target.value)}
+                  className="mode-select"
+                >
+                  <option value="white">White</option>
+                  <option value="transparent">Transparent</option>
+                </select>
+              </div>
+            )}
+            {resizeMode === 'square' && squareMode === 'crop' && (
+              <div className="mode-input-group">
+                <label htmlFor="crop-position">Crop Position</label>
+                <select
+                  id="crop-position"
+                  value={cropPosition}
+                  onChange={(e) => setCropPosition(e.target.value)}
+                  className="crop-position-select"
+                >
+                  <option value="center">Center</option>
+                  <option value="top">Top{'     '}</option>
+                  <option value="bottom">Bottom{'     '}</option>
+                </select>
+              </div>
+            )}
           </div>
+          <button
+            onClick={handleImageResize}
+            disabled={loading || !sourceColumnId || !targetColumnId}
+            className="resize-button"
+          >
+            {loading ? 'Processing...' : 'Resize Image'}
+          </button>
         </div>
         <div className="instructions">
           <h3>How to use:</h3>
