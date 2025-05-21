@@ -416,9 +416,10 @@ function App() {
     return (
       <div className="App">
         <div className="loading">
-          <div className="loading-spinner"></div>
-          <h3>Loading...</h3>
-          <p>{status}</p>
+          <div>Loading Image Resizer...</div>
+          <div className="loading-bar">
+            <div className="loading-bar-fill"></div>
+          </div>
         </div>
       </div>
     );
