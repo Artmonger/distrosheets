@@ -62,6 +62,8 @@ function App() {
     let mounted = true;
     const monday = window.monday;
 
+    console.clear(); // Clear the console on load
+
     if (!monday) {
       setError('Monday SDK not available');
       setLoading(false);
