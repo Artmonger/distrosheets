@@ -6,6 +6,7 @@ const sharp = require('sharp');
 const mondaySdk = require('monday-sdk-js')();
 const winston = require('winston');
 require('winston-daily-rotate-file');
+const helmet = require('helmet');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -26,6 +27,15 @@ const logger = winston.createLogger({
     })
   ]
 });
+
+// Enable HSTS with a minimum age of one year
+app.use(helmet({
+  hsts: {
+    maxAge: 31536000, // 1 year in seconds
+    includeSubDomains: true,
+    preload: true
+  }
+}));
 
 // CORS configuration with Monday.com domains
 app.use(cors({
