@@ -4,9 +4,28 @@ const cors = require('cors');
 const fetch = require('node-fetch');
 const sharp = require('sharp');
 const mondaySdk = require('monday-sdk-js')();
+const winston = require('winston');
+require('winston-daily-rotate-file');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+
+// Configure winston logger
+const logger = winston.createLogger({
+  level: 'info',
+  format: winston.format.combine(
+    winston.format.timestamp(),
+    winston.format.json()
+  ),
+  transports: [
+    new winston.transports.DailyRotateFile({
+      filename: 'logs/user-%DATE%.log',
+      datePattern: 'YYYY-MM-DD',
+      maxFiles: '60d',
+      maxSize: '20m'
+    })
+  ]
+});
 
 // CORS configuration with Monday.com domains
 app.use(cors({

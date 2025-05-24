@@ -18,7 +18,9 @@
     "react-dom": "^18.2.0",
     "react-scripts": "5.0.1",
     "sharp": "^0.34.1",
-    "web-vitals": "^2.1.4"
+    "web-vitals": "^2.1.4",
+    "winston": "^3.17.0",
+    "winston-daily-rotate-file": "^5.0.0"
   },
   "scripts": {
     "start": "node server.js",
