@@ -37,12 +37,6 @@ app.use(helmet({
   }
 }));
 
-// Add HSTS header manually to ensure it is set
-app.use((req, res, next) => {
-  res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains; preload');
-  next();
-});
-
 // CORS configuration with Monday.com domains
 app.use(cors({
   origin: [
