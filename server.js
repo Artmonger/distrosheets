@@ -59,10 +59,32 @@ app.use(express.raw({ type: 'application/octet-stream', limit: '50mb' }));
 // Serve static files from the React app
 app.use(express.static(path.join(__dirname, 'build')));
 
+// Whitelist of allowed domains
+const allowedDomains = [
+  'monday.com',
+  'artmonger.monday.com',
+  'monday-img-app-aaca18d8516b.herokuapp.com',
+  'localhost'
+];
+
+// Helper function to check if a URL is from an allowed domain
+function isAllowedDomain(url) {
+  try {
+    const urlObj = new URL(url);
+    return allowedDomains.some(domain => urlObj.hostname.endsWith(domain));
+  } catch (error) {
+    return false;
+  }
+}
+
 // Helper function to download file from Monday.com
 async function downloadFileFromMonday(fileUrl, token) {
   console.log('Starting file download process...');
   
+  if (!isAllowedDomain(fileUrl)) {
+    throw new Error('Access to the specified domain is not allowed.');
+  }
+
   try {
     let response = await fetch(fileUrl, {
       headers: {
