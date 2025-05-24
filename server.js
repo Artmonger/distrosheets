@@ -30,11 +30,7 @@ const logger = winston.createLogger({
 
 // Enable HSTS with a minimum age of one year
 app.use(helmet({
-  hsts: {
-    maxAge: 31536000, // 1 year in seconds
-    includeSubDomains: true,
-    preload: true
-  }
+  hsts: false // Disable HSTS to ensure app accessibility
 }));
 
 // CORS configuration with Monday.com domains
