@@ -153,23 +153,6 @@ app.post('/resize-image', async (req, res) => {
             fit: 'cover',
             position: cropPosition || 'center'
           });
-      } else if (squareMode === 'circle') {
-        // Crop to square, then mask to circle
-        pipeline = pipeline
-          .resize(parsedWidth, parsedWidth, {
-            fit: 'cover',
-            position: cropPosition || 'center'
-          })
-          .composite([
-            {
-              input: Buffer.from(
-                `<svg width='${parsedWidth}' height='${parsedWidth}'><circle cx='${parsedWidth/2}' cy='${parsedWidth/2}' r='${parsedWidth/2}' fill='white'/></svg>`
-              ),
-              blend: 'dest-in'
-            }
-          ]);
-        // Always output PNG for circle crop
-        padColor = 'transparent';
       } else {
         // Pad to square
         pipeline = pipeline
