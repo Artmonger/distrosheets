@@ -54,6 +54,7 @@ const allowedDomains = [
   'monday.com',
   'artmonger.monday.com',
   'monday-img-app-aaca18d8516b.herokuapp.com',
+  'files-monday-com.s3.amazonaws.com',
   'localhost'
 ];
 
