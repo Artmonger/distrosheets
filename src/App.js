@@ -62,8 +62,6 @@ function App() {
     let mounted = true;
     const monday = window.monday;
 
-    console.clear(); // Clear the console on load
-
     if (!monday) {
       setError('Monday SDK not available');
       setLoading(false);
@@ -144,7 +142,6 @@ function App() {
     return () => {
       mounted = false;
       unsubscribeContext();
-      console.clear();
     };
   }, [context?.itemId]);
 
@@ -406,11 +403,24 @@ function App() {
             }
           }`;
 
+          console.log('Attempting to upload file:', {
+            fileName: newFileName,
+            fileSize: imageBlob.size,
+            fileType: imageBlob.type,
+            itemId: context.itemId,
+            columnId: targetColumnId
+          });
+
           const result = await monday.api(uploadMutation, { variables: { file } });
           console.log('File upload response for', newFileName, ':', result);
 
           if (!result.data?.add_file_to_column?.id) {
-            console.error('Failed to upload file:', newFileName);
+            console.error('Failed to upload file:', {
+              fileName: newFileName,
+              response: result,
+              error: result.errors
+            });
+            throw new Error(`Failed to upload file: ${result.errors?.[0]?.message || 'Unknown error'}`);
           }
         } catch (err) {
           console.error('Error during file upload for', newFileName, ':', err);
@@ -431,8 +441,6 @@ function App() {
       if (window.monday && window.monday.execute) {
         window.monday.execute('valueCreatedForUser');
       }
-      // Clear the console after successful resize
-      console.clear();
 
     } catch (err) {
       console.error("Error during image resize:", err);
