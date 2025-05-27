@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>HSTS Enablement Documentation</title>
+  <style>
+    body { font-family: Arial, sans-serif; max-width: 700px; margin: 40px auto; background: #fff; color: #222; }
+    h1 { color: #2d3a5a; }
+    code, pre { background: #f4f4f4; border-radius: 4px; padding: 2px 6px; }
+    pre { padding: 12px; }
+    .section { margin-bottom: 2em; }
+    .header { border-bottom: 2px solid #e6e9ef; margin-bottom: 1em; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>HSTS Enablement Documentation</h1>
+    <p><b>App:</b> Easy Image Resizer<br>
+    <b>Domain:</b> https://image-resizer-app-2024-a35abaeeab93.herokuapp.com/</p>
+  </div>
+
+  <div class="section">
+    <h2>What is HSTS?</h2>
+    <p>HTTP Strict Transport Security (HSTS) is a web security policy mechanism that helps protect websites against man-in-the-middle attacks by enforcing the use of HTTPS.</p>
+  </div>
+
+  <div class="section">
+    <h2>How HSTS is Enabled</h2>
+    <p>HSTS is enabled for all responses using the <code>helmet</code> middleware in the app's <code>server.js</code> file:</p>
+    <pre><code>const helmet = require('helmet');
+
+// ... other middleware and setup ...
+
+// Enable HSTS for all responses
+app.use(helmet.hsts({
+  maxAge: 31536000, // 1 year in seconds
+  includeSubDomains: true,
+  preload: true
+}));
+</code></pre>
+    <ul>
+      <li><b>max-age=31536000</b>: Browsers will only access the site over HTTPS for 1 year.</li>
+      <li><b>includeSubDomains</b>: Applies the rule to all subdomains.</li>
+      <li><b>preload</b>: Indicates intent to be included in browser HSTS preload lists.</li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <h2>How to Verify</h2>
+    <p>You can check the response headers from the app using browser dev tools or <code>curl</code>:</p>
+    <pre><code>curl -I https://image-resizer-app-2024-a35abaeeab93.herokuapp.com/</code></pre>
+    <p>The response will include:</p>
+    <pre><code>Strict-Transport-Security: max-age=31536000; includeSubDomains; preload</code></pre>
+  </div>
+
+  <div class="section">
+    <h2>Summary</h2>
+    <p>This app is fully HSTS-compliant and enforces HTTPS for all users and subdomains for at least one year.</p>
+  </div>
+</body>
+</html> 
