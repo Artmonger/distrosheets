@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Log Retention Documentation</title>
+  <style>
+    body { font-family: Arial, sans-serif; max-width: 700px; margin: 40px auto; background: #fff; color: #222; }
+    h1 { color: #2d3a5a; }
+    code, pre { background: #f4f4f4; border-radius: 4px; padding: 2px 6px; }
+    pre { padding: 12px; }
+    .section { margin-bottom: 2em; }
+    .header { border-bottom: 2px solid #e6e9ef; margin-bottom: 1em; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>Log Retention Documentation</h1>
+    <p><b>App:</b> Easy Image Resizer<br>
+    <b>Domain:</b> https://image-resizer-app-2024-a35abaeeab93.herokuapp.com/</p>
+  </div>
+
+  <div class="section">
+    <h2>Log Retention Policy</h2>
+    <p>User logs are retained for <b>up to 2 months (60 days)</b> in accordance with security and compliance requirements.</p>
+  </div>
+
+  <div class="section">
+    <h2>How Log Retention is Configured</h2>
+    <p>Log retention is managed using the <code>winston</code> logger with <code>winston-daily-rotate-file</code> in the app's <code>server.js</code> file:</p>
+    <pre><code>const logger = winston.createLogger({
+  level: 'info',
+  format: winston.format.combine(
+    winston.format.timestamp(),
+    winston.format.json()
+  ),
+  transports: [
+    new winston.transports.DailyRotateFile({
+      filename: 'logs/user-%DATE%.log',
+      datePattern: 'YYYY-MM-DD',
+      maxFiles: '60d', // Logs are kept for 60 days (2 months)
+      maxSize: '20m'
+    })
+  ]
+});
+</code></pre>
+    <ul>
+      <li><b>maxFiles: '60d'</b>: Logs are retained for 60 days (2 months) before being deleted.</li>
+      <li>Logs are rotated daily and stored in the <code>logs/</code> directory.</li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <h2>How to Verify</h2>
+    <p>You can verify log retention by inspecting the <code>server.js</code> configuration and the <code>logs/</code> directory on the server.</p>
+  </div>
+
+  <div class="section">
+    <h2>Summary</h2>
+    <p>This app is configured to retain user logs for up to 2 months (60 days) to meet compliance and security requirements.</p>
+  </div>
+</body>
+</html> 
