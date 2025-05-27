@@ -519,9 +519,8 @@ function App() {
   if (error && error.includes('two file columns')) {
     return (
       <div className="App">
-        <div className="error">
-          <h3>Not Enough File Columns</h3>
-          <p>Please add two file columns to your board - one for original images and one for resized images.</p>
+        <div className="loading">
+          <div>Please add two file columns to your board – one for original images and one for resized images.</div>
         </div>
       </div>
     );
