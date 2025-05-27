@@ -503,25 +503,25 @@ function App() {
     );
   }
 
-  if (!context || !itemData) {
+  // Show error if not in item view (no boardId or itemId)
+  if (!context || !context.boardId || !context.itemId) {
     return (
       <div className="App">
         <div className="error">
-          <h3>Access Denied</h3>
-          <p>As a viewer, you don't have permission to use this application. Please contact your board admin for access.</p>
+          <h3>Not in Item View</h3>
+          <p>Please add app to Item View.</p>
         </div>
       </div>
     );
   }
 
-  const fileColumns = itemData.fileColumns || [];
-
-  if (fileColumns.length < 2) {
+  // Show error if there are not at least two file columns
+  if (itemData && itemData.fileColumns && itemData.fileColumns.length < 2) {
     return (
       <div className="App">
         <div className="error">
           <h3>Not Enough File Columns</h3>
-          <p>Please add at least two file columns to your board to use this app.</p>
+          <p>Please make sure there are two file columns in your board.</p>
         </div>
       </div>
     );
@@ -563,7 +563,7 @@ function App() {
                 className="column-select"
               >
                 <option value="">Select source column{'     '}</option>
-                {fileColumns.map(col => (
+                {itemData && itemData.fileColumns.map(col => (
                   <option key={col.id} value={col.id}>
                     {col.title}
                   </option>
@@ -580,7 +580,7 @@ function App() {
                 disabled={!sourceColumnId}
               >
                 <option value="">Select target column{'     '}</option>
-                {fileColumns
+                {itemData && itemData.fileColumns
                   .filter(col => col.id !== sourceColumnId)
                   .map(col => (
                     <option key={col.id} value={col.id}>
