@@ -515,8 +515,19 @@ function App() {
     );
   }
 
+  // Show loading or not ready state if context or itemData is not loaded
+  if (!itemData) {
+    return (
+      <div className="App">
+        <div className="loading">
+          <div>Loading Image Resizer...</div>
+        </div>
+      </div>
+    );
+  }
+
   // Show error if there are not at least two file columns
-  if (itemData && itemData.fileColumns && itemData.fileColumns.length < 2) {
+  if (itemData.fileColumns && itemData.fileColumns.length < 2) {
     return (
       <div className="App">
         <div className="error">
