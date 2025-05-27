@@ -517,22 +517,21 @@ function App() {
 
   // Show loading or not ready state if context or itemData is not loaded
   if (!itemData) {
+    // If the error is about file columns, show it as an error
+    if (error && error.includes('two file columns')) {
+      return (
+        <div className="App">
+          <div className="error">
+            <h3>Not Enough File Columns</h3>
+            <p>Please add two file columns to your board - one for original images and one for resized images.</p>
+          </div>
+        </div>
+      );
+    }
     return (
       <div className="App">
         <div className="loading">
           <div>Loading Image Resizer...</div>
-        </div>
-      </div>
-    );
-  }
-
-  // Show error if there are not at least two file columns
-  if (itemData.fileColumns && itemData.fileColumns.length < 2) {
-    return (
-      <div className="App">
-        <div className="error">
-          <h3>Not Enough File Columns</h3>
-          <p>Please make sure there are two file columns in your board.</p>
         </div>
       </div>
     );
