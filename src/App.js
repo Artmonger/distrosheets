@@ -624,11 +624,10 @@ function App() {
                 >
                   <option value="crop">Crop to Square{'     '}</option>
                   <option value="pad">Pad to Square{'     '}</option>
-                  <option value="circle">Circle Crop{'     '}</option>
                 </select>
               </div>
             )}
-            {resizeMode === 'square' && (squareMode === 'pad' || squareMode === 'circle') && (
+            {resizeMode === 'square' && squareMode === 'pad' && (
               <div className="mode-input-group">
                 <label htmlFor="pad-color">Padding Color</label>
                 <select
@@ -642,7 +641,7 @@ function App() {
                 </select>
               </div>
             )}
-            {resizeMode === 'square' && (squareMode === 'crop' || squareMode === 'circle') && (
+            {resizeMode === 'square' && squareMode === 'crop' && (
               <div className="mode-input-group">
                 <label htmlFor="crop-position">Crop Position</label>
                 <select
