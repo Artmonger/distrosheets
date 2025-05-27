@@ -491,6 +491,18 @@ function App() {
     );
   }
 
+  // Show error only if user is a viewer
+  if (context && context.user && context.user.kind === 'viewer') {
+    return (
+      <div className="App">
+        <div className="error">
+          <h3>Access Denied</h3>
+          <p>As a viewer, you don't have permission to use this application. Please contact your board admin for access.</p>
+        </div>
+      </div>
+    );
+  }
+
   if (!context || !itemData) {
     return (
       <div className="App">
