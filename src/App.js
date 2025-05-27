@@ -216,7 +216,9 @@ function App() {
       console.log('Found file columns:', fileColumns);
       
       if (fileColumns.length < 2) {
-        throw new Error('Please add two file columns to your board - one for original images and one for resized images.');
+        setError('Please add two file columns to your board - one for original images and one for resized images.');
+        setItemData(null);
+        return;
       }
 
       setItemData({
@@ -229,9 +231,7 @@ function App() {
       setError(null);
     } catch (err) {
       console.error("Error fetching data:", err);
-      if (err.message.includes('permission') || err.message.includes('access')) {
-        throw new Error('As a viewer user, you don\'t have access to the app. Please contact your board admin for access.');
-      }
+      setError(err.message);
       throw err;
     }
   };
