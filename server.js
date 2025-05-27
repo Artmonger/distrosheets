@@ -6,6 +6,7 @@ const sharp = require('sharp');
 const mondaySdk = require('monday-sdk-js')();
 const winston = require('winston');
 require('winston-daily-rotate-file');
+const helmet = require('helmet');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -104,6 +105,13 @@ async function downloadFileFromMonday(fileUrl, token) {
     throw error;
   }
 }
+
+// Enable HSTS for all responses
+app.use(helmet.hsts({
+  maxAge: 31536000, // 1 year in seconds
+  includeSubDomains: true,
+  preload: true
+}));
 
 // Endpoint to resize images
 app.post('/resize-image', async (req, res) => {
