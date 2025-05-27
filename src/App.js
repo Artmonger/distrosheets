@@ -62,6 +62,7 @@ function App() {
     let mounted = true;
     const monday = window.monday;
 
+    console.clear();
     if (!monday) {
       setError('Monday SDK not available');
       setLoading(false);
@@ -142,6 +143,7 @@ function App() {
     return () => {
       mounted = false;
       unsubscribeContext();
+      console.clear();
     };
   }, [context?.itemId]);
 
@@ -441,6 +443,7 @@ function App() {
       if (window.monday && window.monday.execute) {
         window.monday.execute('valueCreatedForUser');
       }
+      console.clear();
 
     } catch (err) {
       console.error("Error during image resize:", err);
