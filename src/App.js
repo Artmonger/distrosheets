@@ -495,8 +495,8 @@ function App() {
     return (
       <div className="App">
         <div className="error">
-          <h3>Not Ready</h3>
-          <p>Please run this app in a Monday.com item view</p>
+          <h3>Access Denied</h3>
+          <p>As a viewer, you don't have permission to use this application. Please contact your board admin for access.</p>
         </div>
       </div>
     );
