@@ -11,7 +11,7 @@ const helmet = require('helmet');
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// Configure Helmet with explicit HSTS settings
+// Configure Helmet with explicit HSTS and CSP settings
 app.use(helmet({
   hsts: {
     maxAge: 31536000,
@@ -29,7 +29,8 @@ app.use(helmet({
       fontSrc: ["'self'"],
       objectSrc: ["'none'"],
       mediaSrc: ["'self'"],
-      frameSrc: ["'none'"]
+      frameSrc: ["'none'"],
+      frameAncestors: ["'self'", "https://*.monday.com", "https://monday.com"]
     }
   }
 }));
