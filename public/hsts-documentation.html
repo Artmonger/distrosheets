@@ -16,7 +16,7 @@
   <div class="header">
     <h1>HSTS Enablement Documentation</h1>
     <p><b>App:</b> Easy Image Resizer<br>
-    <b>Domain:</b> https://image-resizer-app-2024-a35abaeeab93.herokuapp.com/</p>
+    <b>Domain:</b> <a href="https://imageresizer.filesmarter.com" target="_blank">https://imageresizer.filesmarter.com</a></p>
   </div>
 
   <div class="section">
@@ -48,7 +48,7 @@ app.use(helmet.hsts({
   <div class="section">
     <h2>How to Verify</h2>
     <p>You can check the response headers from the app using browser dev tools or <code>curl</code>:</p>
-    <pre><code>curl -I https://image-resizer-app-2024-a35abaeeab93.herokuapp.com/</code></pre>
+    <pre><code>curl -I https://imageresizer.filesmarter.com/</code></pre>
     <p>The response will include:</p>
     <pre><code>Strict-Transport-Security: max-age=31536000; includeSubDomains; preload</code></pre>
   </div>

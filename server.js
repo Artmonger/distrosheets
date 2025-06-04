@@ -11,6 +11,29 @@ const helmet = require('helmet');
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+// Configure Helmet with explicit HSTS settings
+app.use(helmet({
+  hsts: {
+    maxAge: 31536000,
+    includeSubDomains: true,
+    preload: true,
+    force: true
+  },
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      imgSrc: ["'self'", "data:", "https:"],
+      connectSrc: ["'self'", "https://*.monday.com"],
+      fontSrc: ["'self'"],
+      objectSrc: ["'none'"],
+      mediaSrc: ["'self'"],
+      frameSrc: ["'none'"]
+    }
+  }
+}));
+
 // Configure winston logger
 const logger = winston.createLogger({
   level: 'info',
@@ -106,12 +129,13 @@ async function downloadFileFromMonday(fileUrl, token) {
   }
 }
 
-// Enable HSTS for all responses
-app.use(helmet.hsts({
-  maxAge: 31536000, // 1 year in seconds
-  includeSubDomains: true,
-  preload: true
-}));
+// Redirect HTTP to HTTPS (Heroku)
+app.use((req, res, next) => {
+  if (req.headers['x-forwarded-proto'] !== 'https') {
+    return res.redirect('https://' + req.headers.host + req.url);
+  }
+  next();
+});
 
 // Endpoint to resize images
 app.post('/resize-image', async (req, res) => {
@@ -261,6 +285,11 @@ app.get('/install', (req, res) => {
 // Pricing endpoint
 app.get('/pricing', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'pricing.html'));
+});
+
+// Test endpoint for HSTS verification
+app.get('/hsts-test', (req, res) => {
+  res.json({ message: 'HSTS Test Endpoint' });
 });
 
 // The "catchall" handler: for any request that doesn't

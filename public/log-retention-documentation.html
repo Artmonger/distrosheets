@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+ <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -10,53 +10,80 @@
     pre { padding: 12px; }
     .section { margin-bottom: 2em; }
     .header { border-bottom: 2px solid #e6e9ef; margin-bottom: 1em; }
+    table { border-collapse: collapse; width: 100%; margin-bottom: 2em; }
+    th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+    th { background: #f4f4f4; }
   </style>
 </head>
 <body>
   <div class="header">
     <h1>Log Retention Documentation</h1>
-    <p><b>App:</b> Easy Image Resizer<br>
-    <b>Domain:</b> https://image-resizer-app-2024-a35abaeeab93.herokuapp.com/</p>
+    <p><b>App:</b> Easy Image Resizer (<code>image-resizer-app-2024</code>)<br>
+    <b>Log Storage:</b> Amazon S3<br>
+    <b>Bucket:</b> <code>mondayimageresizer</code><br>
+    <b>Region:</b> <code>us-east-2</code> (Ohio)</p>
   </div>
 
   <div class="section">
-    <h2>Log Retention Policy</h2>
-    <p>User logs are retained for <b>up to 2 months (60 days)</b> in accordance with security and compliance requirements.</p>
-  </div>
-
-  <div class="section">
-    <h2>How Log Retention is Configured</h2>
-    <p>Log retention is managed using the <code>winston</code> logger with <code>winston-daily-rotate-file</code> in the app's <code>server.js</code> file:</p>
-    <pre><code>const logger = winston.createLogger({
-  level: 'info',
-  format: winston.format.combine(
-    winston.format.timestamp(),
-    winston.format.json()
-  ),
-  transports: [
-    new winston.transports.DailyRotateFile({
-      filename: 'logs/user-%DATE%.log',
-      datePattern: 'YYYY-MM-DD',
-      maxFiles: '60d', // Logs are kept for 60 days (2 months)
-      maxSize: '20m'
-    })
-  ]
-});
-</code></pre>
+    <h2>How Logs Are Uploaded</h2>
     <ul>
-      <li><b>maxFiles: '60d'</b>: Logs are retained for 60 days (2 months) before being deleted.</li>
-      <li>Logs are rotated daily and stored in the <code>logs/</code> directory.</li>
+      <li>A script (<code>heroku-fetch-logs.js</code>) runs daily via <b>Heroku Scheduler</b>.</li>
+      <li>The script fetches the latest logs from the Heroku app and uploads them to the S3 bucket under the <code>logs/</code> prefix.</li>
+      <li>Each log file is named with the date, e.g., <code>heroku-log-YYYY-MM-DD.log</code>.</li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <h2>How Log Retention is Enforced</h2>
+    <ul>
+      <li><b>S3 Lifecycle Rule:</b> An S3 lifecycle rule is configured on the bucket to automatically delete log files in the <code>logs/</code> folder that are older than 60 days (2 months).</li>
+      <li>This ensures that no logs older than 2 months are retained, meeting compliance and security requirements.</li>
     </ul>
   </div>
 
   <div class="section">
     <h2>How to Verify</h2>
-    <p>You can verify log retention by inspecting the <code>server.js</code> configuration and the <code>logs/</code> directory on the server.</p>
+    <ol>
+      <li><b>Check S3 Bucket:</b> Go to the AWS S3 console, navigate to the <code>mondayimageresizer</code> bucket and the <code>logs/</code> folder. You will see daily log files, each named by date.</li>
+      <li><b>Check Lifecycle Rules:</b> In the S3 bucket, go to the <b>Management</b> tab. Under <b>Lifecycle rules</b>, you should see a rule that expires (deletes) objects in <code>logs/</code> after 60 days.</li>
+    </ol>
   </div>
 
   <div class="section">
-    <h2>Summary</h2>
-    <p>This app is configured to retain user logs for up to 2 months (60 days) to meet compliance and security requirements.</p>
+    <h2>Summary Table</h2>
+    <table>
+      <tr><th>Step</th><th>Tool/Service</th><th>Details</th></tr>
+      <tr><td>Log Generation</td><td>Heroku</td><td>App logs generated daily</td></tr>
+      <tr><td>Log Fetch & Upload</td><td>Heroku Scheduler</td><td>Runs <code>heroku-fetch-logs.js</code> daily</td></tr>
+      <tr><td>Log Storage</td><td>Amazon S3</td><td>Bucket: <code>mondayimageresizer</code></td></tr>
+      <tr><td>Retention Policy</td><td>S3 Lifecycle Rule</td><td>Deletes logs older than 60 days</td></tr>
+    </table>
+  </div>
+
+  <div class="section">
+    <h2>Sample S3 Lifecycle Rule JSON</h2>
+    <pre><code>{
+  "Rules": [
+    {
+      "ID": "DeleteOldLogs",
+      "Prefix": "logs/",
+      "Status": "Enabled",
+      "Expiration": {
+        "Days": 60
+      }
+    }
+  ]
+}
+</code></pre>
+  </div>
+
+  <div class="section">
+    <h2>Proof of Retention</h2>
+    <ul>
+      <li><b>Daily uploads</b> are visible in the S3 bucket under <code>logs/</code>.</li>
+      <li><b>Automatic deletion</b> of logs older than 60 days is handled by the S3 lifecycle rule.</li>
+      <li>This setup ensures logs are retained for up to two months, with no manual intervention required.</li>
+    </ul>
   </div>
 </body>
 </html> 

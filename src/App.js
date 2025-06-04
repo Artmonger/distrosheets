@@ -497,7 +497,7 @@ function App() {
       <div className="App">
         <div className="error">
           <h3>Access Denied</h3>
-          <p>As a viewer, you don't have permission to use this application. Please contact your board admin for access.</p>
+          <p>This app is not available to a viewer role, please talk with your system admin.</p>
         </div>
       </div>
     );
