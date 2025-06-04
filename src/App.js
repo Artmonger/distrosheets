@@ -59,6 +59,7 @@ function App() {
     }
   };
 
+  // Fetch context and user role ONCE at the top
   useEffect(() => {
     const monday = window.monday;
     if (!monday) {
@@ -75,6 +76,18 @@ function App() {
       setLoading(false);
     });
   }, []);
+
+  // Only fetch item data if not a viewer and context is ready
+  useEffect(() => {
+    if (userRole && userRole !== 'viewer' && context && context.boardId && context.itemId) {
+      const contextKey = `${context.boardId}-${context.itemId}`;
+      if (!dataFetchedRef.current[contextKey]) {
+        dataFetchedRef.current[contextKey] = true;
+        fetchItemData(context.boardId, context.itemId);
+      }
+    }
+    // eslint-disable-next-line
+  }, [userRole, context]);
 
   if (loading) {
     return (
@@ -99,66 +112,6 @@ function App() {
       </div>
     );
   }
-
-  useEffect(() => {
-    let mounted = true;
-    const monday = window.monday;
-
-    if (!monday) {
-      setError('Monday SDK not available');
-      setLoading(false);
-      return;
-    }
-
-    const initializeApp = async () => {
-      try {
-        // Get initial context
-        const contextRes = await monday.get('context');
-        if (!mounted) return;
-
-        // Check for viewer role BEFORE setting context or fetching data
-        if (contextRes.data?.user?.kind === 'viewer') {
-          setError('You can not use this app as a viewer role, please talk to your system admin.');
-          setLoading(false);
-          return;
-        }
-
-        // Only set context and fetch data if not a viewer
-        setContext(contextRes.data);
-        const contextKey = `${contextRes.data.boardId}-${contextRes.data.itemId}`;
-        if (!dataFetchedRef.current[contextKey]) {
-          if (contextRes.data.boardId && contextRes.data.itemId) {
-            dataFetchedRef.current[contextKey] = true;
-            try {
-              await fetchItemData(contextRes.data.boardId, contextRes.data.itemId);
-            } catch (err) {
-              if (err.message.includes('permission') || err.message.includes('access')) {
-                setError('You can not use this app as a viewer role, please talk to your system admin.');
-                setLoading(false);
-                return;
-              }
-              throw err;
-            }
-          } else {
-            setError('Please open this app in a board item view');
-          }
-        }
-        setLoading(false);
-      } catch (err) {
-        if (mounted) {
-          if (err.message.includes('permission') || err.message.includes('access')) {
-            setError('You can not use this app as a viewer role, please talk to your system admin.');
-          } else {
-            setError(err.message);
-          }
-          setLoading(false);
-        }
-      }
-    };
-
-    initializeApp();
-    return () => { mounted = false; };
-  }, []);
 
   const fetchItemData = async (boardId, itemId) => {
     const monday = window.monday;
