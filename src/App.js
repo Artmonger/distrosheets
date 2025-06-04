@@ -3,6 +3,7 @@ import './App.css';
 import LoadingIndicator from './LoadingIndicator';
 
 function App() {
+  const [userRole, setUserRole] = useState(null);
   const [context, setContext] = useState(null);
   const [itemData, setItemData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -57,6 +58,47 @@ function App() {
       setHeight(width);
     }
   };
+
+  useEffect(() => {
+    const monday = window.monday;
+    if (!monday) {
+      setError('Monday SDK not available');
+      setLoading(false);
+      return;
+    }
+    monday.get('context').then(res => {
+      setUserRole(res.data?.user?.kind);
+      setContext(res.data);
+      setLoading(false);
+    }).catch(() => {
+      setError('Failed to fetch context from Monday.com');
+      setLoading(false);
+    });
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="App">
+        <div className="loading">
+          <div>Loading Image Resizer...</div>
+          <div className="loading-bar">
+            <div className="loading-bar-fill"></div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (userRole === 'viewer') {
+    return (
+      <div className="App">
+        <div className="error">
+          <h3>Access Denied</h3>
+          <p>You can not use this app as a viewer role, please talk to your system admin.</p>
+        </div>
+      </div>
+    );
+  }
 
   useEffect(() => {
     let mounted = true;
