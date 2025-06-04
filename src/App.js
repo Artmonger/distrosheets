@@ -59,7 +59,7 @@ function App() {
     }
   };
 
-  // Fetch context and user role ONCE at the top
+  // All useEffect hooks at the top
   useEffect(() => {
     const monday = window.monday;
     if (!monday) {
@@ -77,7 +77,6 @@ function App() {
     });
   }, []);
 
-  // Only fetch item data if not a viewer and context is ready
   useEffect(() => {
     if (userRole && userRole !== 'viewer' && context && context.boardId && context.itemId) {
       const contextKey = `${context.boardId}-${context.itemId}`;
@@ -89,7 +88,19 @@ function App() {
     // eslint-disable-next-line
   }, [userRole, context]);
 
-  if (loading) {
+  useEffect(() => {
+    const timer = setTimeout(() => setInitialLoadComplete(true), 2000);
+    return () => clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    if (context && itemData) {
+      setLoading(false);
+    }
+  }, [context, itemData]);
+
+  // Now do all conditional rendering below
+  if (loading || !initialLoadComplete) {
     return (
       <div className="App">
         <div className="loading">
@@ -108,6 +119,18 @@ function App() {
         <div className="error">
           <h3>Access Denied</h3>
           <p>You can not use this app as a viewer role, please talk to your system admin.</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="App">
+        <div className="error">
+          <h3>Error</h3>
+          <p>{error}</p>
+          <button onClick={() => window.location.reload()}>Retry</button>
         </div>
       </div>
     );
@@ -418,67 +441,6 @@ function App() {
       setResizing(false);
     }
   };
-
-  useEffect(() => {
-    const timer = setTimeout(() => setInitialLoadComplete(true), 2000);
-    return () => clearTimeout(timer);
-  }, []);
-
-  // Only set loading to false after both context and itemData are loaded
-  useEffect(() => {
-    if (context && itemData) {
-      setLoading(false);
-    }
-  }, [context, itemData]);
-
-  // Show loading bar only during initial app loading
-  if (loading || !initialLoadComplete) {
-    return (
-      <div className="App">
-        <div className="loading">
-          <div>Loading Image Resizer...</div>
-          <div className="loading-bar">
-            <div className="loading-bar-fill"></div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="App">
-        <div className="error">
-          <h3>Error</h3>
-          <p>{error}</p>
-          <button onClick={() => window.location.reload()}>Retry</button>
-        </div>
-      </div>
-    );
-  }
-
-  // Show error if not in item view (no boardId or itemId)
-  if (!context || !context.boardId || !context.itemId) {
-    return (
-      <div className="App">
-        <div className="error">
-          <h3>Not in Item View</h3>
-          <p>Please add app to Item View.</p>
-        </div>
-      </div>
-    );
-  }
-
-  // Show error if the error message is about file columns, even if itemData is not loaded
-  if (error && error.includes('two file columns')) {
-    return (
-      <div className="App">
-        <div className="loading">
-          <div>Please add two file columns to your board – one for original images and one for resized images.</div>
-        </div>
-      </div>
-    );
-  }
 
   // Show loading or not ready state if context or itemData is not loaded
   if (!itemData) {
