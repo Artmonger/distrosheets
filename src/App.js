@@ -78,6 +78,11 @@ function App() {
         if (!mounted) return;
 
         if (contextRes.data) {
+          if (contextRes.data.user && contextRes.data.user.kind === 'viewer') {
+            setError('You can not use this app as a viewer role, please talk to your system admin.');
+            setLoading(false);
+            return;
+          }
           const contextKey = `${contextRes.data.boardId}-${contextRes.data.itemId}`;
           if (!dataFetchedRef.current[contextKey]) {
             setContext(contextRes.data);
@@ -88,7 +93,7 @@ function App() {
                 await fetchItemData(contextRes.data.boardId, contextRes.data.itemId);
               } catch (err) {
                 if (err.message.includes('permission') || err.message.includes('access')) {
-                  setError('As a viewer user, you don\'t have access to the app. Please contact your board admin for access.');
+                  setError('You can not use this app as a viewer role, please talk to your system admin.');
                   setLoading(false);
                   return;
                 }
@@ -109,7 +114,7 @@ function App() {
         console.error("Initialization error:", err);
         if (mounted) {
           if (err.message.includes('permission') || err.message.includes('access')) {
-            setError('As a viewer user, you don\'t have access to the app. Please contact your board admin for access.');
+            setError('You can not use this app as a viewer role, please talk to your system admin.');
           } else {
             setError(err.message);
           }
@@ -486,18 +491,6 @@ function App() {
           <h3>Error</h3>
           <p>{error}</p>
           <button onClick={() => window.location.reload()}>Retry</button>
-        </div>
-      </div>
-    );
-  }
-
-  // Show error only if user is a viewer
-  if (context && context.user && context.user.kind === 'viewer') {
-    return (
-      <div className="App">
-        <div className="error">
-          <h3>Access Denied</h3>
-          <p>This app is not available to a viewer role, please talk with your system admin.</p>
         </div>
       </div>
     );
