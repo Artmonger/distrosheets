@@ -62,7 +62,6 @@ function App() {
     let mounted = true;
     const monday = window.monday;
 
-    console.clear();
     if (!monday) {
       setError('Monday SDK not available');
       setLoading(false);
@@ -73,45 +72,37 @@ function App() {
       try {
         // Get initial context
         const contextRes = await monday.get('context');
-        console.log('Initial context response:', contextRes);
-        
         if (!mounted) return;
 
-        if (contextRes.data) {
-          if (contextRes.data.user && contextRes.data.user.kind === 'viewer') {
-            setError('You can not use this app as a viewer role, please talk to your system admin.');
-            setLoading(false);
-            return;
-          }
-          const contextKey = `${contextRes.data.boardId}-${contextRes.data.itemId}`;
-          if (!dataFetchedRef.current[contextKey]) {
-            setContext(contextRes.data);
-            if (contextRes.data.boardId && contextRes.data.itemId) {
-              console.log('Valid initial context, fetching data...');
-              dataFetchedRef.current[contextKey] = true;
-              try {
-                await fetchItemData(contextRes.data.boardId, contextRes.data.itemId);
-              } catch (err) {
-                if (err.message.includes('permission') || err.message.includes('access')) {
-                  setError('You can not use this app as a viewer role, please talk to your system admin.');
-                  setLoading(false);
-                  return;
-                }
-                throw err;
-              }
-            } else {
-              console.log('Initial context missing boardId or itemId:', contextRes.data);
-              setError('Please open this app in a board item view');
-            }
-          }
-        } else {
-          console.log('Empty initial context');
-          setError('No context available. Please refresh the page.');
+        // Check for viewer role BEFORE setting context or fetching data
+        if (contextRes.data?.user?.kind === 'viewer') {
+          setError('You can not use this app as a viewer role, please talk to your system admin.');
+          setLoading(false);
+          return;
         }
 
+        // Only set context and fetch data if not a viewer
+        setContext(contextRes.data);
+        const contextKey = `${contextRes.data.boardId}-${contextRes.data.itemId}`;
+        if (!dataFetchedRef.current[contextKey]) {
+          if (contextRes.data.boardId && contextRes.data.itemId) {
+            dataFetchedRef.current[contextKey] = true;
+            try {
+              await fetchItemData(contextRes.data.boardId, contextRes.data.itemId);
+            } catch (err) {
+              if (err.message.includes('permission') || err.message.includes('access')) {
+                setError('You can not use this app as a viewer role, please talk to your system admin.');
+                setLoading(false);
+                return;
+              }
+              throw err;
+            }
+          } else {
+            setError('Please open this app in a board item view');
+          }
+        }
         setLoading(false);
       } catch (err) {
-        console.error("Initialization error:", err);
         if (mounted) {
           if (err.message.includes('permission') || err.message.includes('access')) {
             setError('You can not use this app as a viewer role, please talk to your system admin.');
@@ -123,34 +114,9 @@ function App() {
       }
     };
 
-    // Set up context listener
-    const unsubscribeContext = monday.listen('context', (res) => {
-      console.log('Context event received:', res);
-      if (!mounted) return;
-      
-      if (res.data) {
-        const contextKey = `${res.data.boardId}-${res.data.itemId}`;
-        if (!dataFetchedRef.current[contextKey]) {
-          console.log('New context received, fetching data...');
-          setContext(res.data);
-          if (res.data.boardId && res.data.itemId) {
-            dataFetchedRef.current[contextKey] = true;
-            fetchItemData(res.data.boardId, res.data.itemId);
-          }
-        } else {
-          console.log('Data already fetched for this context');
-        }
-      }
-    });
-
     initializeApp();
-
-    return () => {
-      mounted = false;
-      unsubscribeContext();
-      console.clear();
-    };
-  }, [context?.itemId]);
+    return () => { mounted = false; };
+  }, []);
 
   const fetchItemData = async (boardId, itemId) => {
     const monday = window.monday;
