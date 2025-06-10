@@ -100,6 +100,17 @@ function App() {
   }, [context, itemData]);
 
   // Now do all conditional rendering below
+  if (userRole === 'viewer') {
+    return (
+      <div className="App">
+        <div className="error">
+          <h3>Access Denied</h3>
+          <p>You can not use this app as a viewer role, please talk to your system admin.</p>
+        </div>
+      </div>
+    );
+  }
+
   if (loading || !initialLoadComplete) {
     return (
       <div className="App">
@@ -108,17 +119,6 @@ function App() {
           <div className="loading-bar">
             <div className="loading-bar-fill"></div>
           </div>
-        </div>
-      </div>
-    );
-  }
-
-  if (userRole === 'viewer') {
-    return (
-      <div className="App">
-        <div className="error">
-          <h3>Access Denied</h3>
-          <p>You can not use this app as a viewer role, please talk to your system admin.</p>
         </div>
       </div>
     );
