@@ -22,6 +22,7 @@ function App() {
   const [showSuccess, setShowSuccess] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const [resizing, setResizing] = useState(false);
+  const [loadingTimeoutReached, setLoadingTimeoutReached] = useState(false);
 
   const handleWidthChange = (value) => {
     // Allow empty string for typing
@@ -99,8 +100,13 @@ function App() {
     }
   }, [context, itemData]);
 
+  useEffect(() => {
+    const timeout = setTimeout(() => setLoadingTimeoutReached(true), 5000);
+    return () => clearTimeout(timeout);
+  }, []);
+
   // Now do all conditional rendering below
-  if (userRole === 'viewer') {
+  if (userRole === 'viewer' || loadingTimeoutReached) {
     return (
       <div className="App">
         <div className="error">
