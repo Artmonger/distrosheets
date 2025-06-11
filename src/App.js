@@ -105,13 +105,13 @@ function App() {
       <div className="App">
         <div className="error">
           <h3>Access Denied</h3>
-          <p>You can not use this app as a viewer role, please talk to your system admin.</p>
+          <p>You cannot use this as a viewer please contact your system admin</p>
         </div>
       </div>
     );
   }
 
-  if (loading || !initialLoadComplete) {
+  if (userRole === null || loading || !initialLoadComplete) {
     return (
       <div className="App">
         <div className="loading">
